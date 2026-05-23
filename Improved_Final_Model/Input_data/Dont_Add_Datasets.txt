@@ -1,0 +1,5 @@
+This folder is intentionally EMPTY for submission.
+All datasets are downloaded automatically by the code.
+Do NOT add any dataset files before submitting the zip.
+The marker should run the code and all datasets will
+download themselves via Hugging Face datasets library.
