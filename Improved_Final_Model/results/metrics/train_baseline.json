@@ -1,6 +1,6 @@
 {
   "model": "baseline",
-  "train_seconds": 116.16,
-  "train_rows": 500,
-  "epochs": 1
+  "train_seconds": 616.51,
+  "train_rows": 1000,
+  "epochs": 2
 }

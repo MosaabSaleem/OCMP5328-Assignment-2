@@ -3,7 +3,15 @@
   "benchmark": "Embedding cosine (CrowS-Pairs gender)",
   "n": 262,
   "bias_type": "gender",
-  "mean_cosine_similarity": 0.9897,
-  "std_cosine_similarity": 0.015,
-  "mean_cosine_distance": 0.0103
+  "mean_cosine_similarity": 0.989,
+  "mean_cosine_similarity_ci": [
+    0.9868,
+    0.9911
+  ],
+  "std_cosine_similarity": 0.0182,
+  "mean_cosine_distance": 0.011,
+  "mean_cosine_distance_ci": [
+    0.0089,
+    0.0132
+  ]
 }

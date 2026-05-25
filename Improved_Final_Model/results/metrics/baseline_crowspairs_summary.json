@@ -3,10 +3,26 @@
   "benchmark": "CrowS-Pairs (gender)",
   "n": 262,
   "bias_type": "gender",
-  "stereotype_preference_rate": 0.6336,
-  "stereotype_preference_rate_avg": 0.5916,
-  "logprob_gap_mean": 0.8674,
-  "logprob_gap_std": 4.1483,
-  "logprob_gap_avg_mean": 0.0347,
-  "logprob_gap_avg_std": 0.4486
+  "stereotype_preference_rate": 0.6221,
+  "stereotype_preference_rate_ci": [
+    0.5687,
+    0.6794
+  ],
+  "stereotype_preference_rate_avg": 0.5992,
+  "stereotype_preference_rate_avg_ci": [
+    0.5382,
+    0.6565
+  ],
+  "logprob_gap_mean": 0.7767,
+  "logprob_gap_mean_ci": [
+    0.3022,
+    1.2763
+  ],
+  "logprob_gap_std": 4.2614,
+  "logprob_gap_avg_mean": 0.0255,
+  "logprob_gap_avg_mean_ci": [
+    -0.0302,
+    0.0771
+  ],
+  "logprob_gap_avg_std": 0.4658
 }

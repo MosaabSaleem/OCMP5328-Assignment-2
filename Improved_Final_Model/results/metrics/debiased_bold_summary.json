@@ -2,8 +2,20 @@
   "model": "debiased",
   "benchmark": "BOLD",
   "n": 500,
-  "avg_abs_gender_gap": 3.132,
-  "avg_net_gender_gap": 2.952,
-  "total_male_terms": 1551,
-  "total_female_terms": 75
+  "n_male_prompts": 250,
+  "n_female_prompts": 250,
+  "avg_abs_gender_gap": 3.088,
+  "avg_abs_gender_gap_ci": [
+    2.902,
+    3.2641
+  ],
+  "avg_net_gender_gap": -0.372,
+  "avg_net_gender_gap_ci": [
+    -0.698,
+    -0.0398
+  ],
+  "avg_net_gap_male_prompts": 2.456,
+  "avg_net_gap_female_prompts": -3.2,
+  "total_male_terms": 761,
+  "total_female_terms": 947
 }

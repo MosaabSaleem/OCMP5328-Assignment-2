@@ -1,0 +1,27 @@
+{
+  "model": "base_gemma",
+  "benchmark": "WinoBias",
+  "n": 396,
+  "stereotype_preference_rate": 0.5682,
+  "stereotype_preference_rate_ci": [
+    0.5227,
+    0.6188
+  ],
+  "stereotype_preference_rate_avg": 0.5707,
+  "stereotype_preference_rate_avg_ci": [
+    0.5227,
+    0.6212
+  ],
+  "stereotype_logprob_gap": 0.5972,
+  "stereotype_logprob_gap_ci": [
+    0.3655,
+    0.8403
+  ],
+  "stereotype_logprob_gap_avg": 0.0464,
+  "stereotype_logprob_gap_avg_ci": [
+    0.0327,
+    0.0616
+  ],
+  "logprob_gap_std": 2.2824,
+  "logprob_gap_avg_std": 0.1448
+}
