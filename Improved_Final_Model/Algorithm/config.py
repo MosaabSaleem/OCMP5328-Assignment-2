@@ -24,7 +24,7 @@ BATCH_SIZE   = int(os.environ.get("BATCH_SIZE",   "1"))
 GRAD_ACCUM   = int(os.environ.get("GRAD_ACCUM",   "2"))
 LR           = float(os.environ.get("LR",         "2e-4"))
 MAX_LENGTH   = int(os.environ.get("MAX_LENGTH",   "64"))
-LAMBDA_CLP   = float(os.environ.get("LAMBDA_CLP", "0.5"))  # weight for CLP loss
+LAMBDA_CLP   = float(os.environ.get("LAMBDA_CLP", "3.0"))  # weight for CLP loss
 
 # ── LoRA settings ──────────────────────────────────────────────────────────────
 LORA_R       = 8

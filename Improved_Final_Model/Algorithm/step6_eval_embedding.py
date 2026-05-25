@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SAMPLE_SIZE
 from Algorithm._model_helpers import load_model, last_hidden
 from Algorithm._dataset_loaders import load_crowspairs
+from Algorithm._stats import bootstrap_ci
 
 import numpy as np
 import pandas as pd
@@ -41,14 +42,18 @@ for model_name in ["baseline", "debiased"]:
 
     df_out = pd.DataFrame(rows)
     df_out.to_csv(os.path.join(METRICS_DIR, f"{model_name}_embedding.csv"), index=False)
+    sim_ci  = bootstrap_ci(df_out["cosine_similarity"]) if len(df_out) else {}
+    dist_ci = bootstrap_ci(df_out["cosine_distance"])   if len(df_out) else {}
     summary = {
         "model": model_name,
         "benchmark": "Embedding cosine (CrowS-Pairs gender)",
         "n": len(df_out),
         "bias_type": BIAS_TYPE,
         "mean_cosine_similarity": round(float(df_out["cosine_similarity"].mean()), 4),
+        "mean_cosine_similarity_ci": [sim_ci.get("ci_low"), sim_ci.get("ci_high")],
         "std_cosine_similarity":  round(float(df_out["cosine_similarity"].std()),  4),
         "mean_cosine_distance":   round(float(df_out["cosine_distance"].mean()),   4),
+        "mean_cosine_distance_ci": [dist_ci.get("ci_low"), dist_ci.get("ci_high")],
     }
     with open(os.path.join(METRICS_DIR, f"{model_name}_embedding_summary.json"), "w") as f:
         json.dump(summary, f, indent=2)

@@ -8,6 +8,7 @@ import sys, os, json, time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SAMPLE_SIZE
 from Algorithm._model_helpers import load_model, generate
+from Algorithm._stats import bootstrap_ci
 
 import numpy as np
 import torch
@@ -34,16 +35,23 @@ def compute_perplexity(mdl, tok, n=50, max_length=128):
         with torch.no_grad():
             nll = float(mdl(**enc, labels=enc["input_ids"]).loss)
         nlls.append(nll)
+    nll_ci = bootstrap_ci(nlls)
+    ppl_ci = (
+        round(float(np.exp(nll_ci["ci_low"])),  4) if nll_ci["ci_low"]  is not None else None,
+        round(float(np.exp(nll_ci["ci_high"])), 4) if nll_ci["ci_high"] is not None else None,
+    )
     return (round(float(np.exp(np.mean(nlls))), 4),
             round(float(np.mean(nlls)), 4),
-            round(float(np.std(nlls)),  4))
+            round(float(np.std(nlls)),  4),
+            nll_ci,
+            ppl_ci)
 
 
 for model_name in ["baseline", "debiased"]:
     print(f"\n[Step 8] Utility eval — {model_name}")
     mdl, tok = load_model(os.path.join(MODEL_DIR, model_name))
 
-    ppl, mean_nll, std_nll = compute_perplexity(mdl, tok, n=EVAL_SAMPLE_SIZE)
+    ppl, mean_nll, std_nll, nll_ci, ppl_ci = compute_perplexity(mdl, tok, n=EVAL_SAMPLE_SIZE)
 
     gen_times = []
     for prompt in UTILITY_PROMPTS:
@@ -62,7 +70,9 @@ for model_name in ["baseline", "debiased"]:
         "model": model_name,
         "benchmark": "Utility",
         "perplexity_wikitext2":        ppl,
+        "perplexity_wikitext2_ci":     [ppl_ci[0], ppl_ci[1]],
         "mean_nll_loss":               mean_nll,
+        "mean_nll_loss_ci":            [nll_ci["ci_low"], nll_ci["ci_high"]],
         "std_nll_loss":                std_nll,
         "mean_generation_seconds":     round(float(np.mean(gen_times)), 3),
         "std_generation_seconds":      round(float(np.std(gen_times)),  3),

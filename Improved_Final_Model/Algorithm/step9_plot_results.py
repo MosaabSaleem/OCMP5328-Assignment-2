@@ -121,12 +121,18 @@ for fpath in glob.glob(os.path.join(METRICS_DIR, "*_summary.json")):
 validate_summary_files(summaries)
 
 rows = []
+ci_lookup = {}  # (model, benchmark, metric) -> (ci_low, ci_high)
 for obj in summaries:
     model = obj.get("model", "")
     bench = obj.get("benchmark", "")
     for k, v in obj.items():
         if isinstance(v, (int, float)) and k not in ("n",):
             rows.append({"model": model, "benchmark": bench, "metric": k, "value": v})
+        # Bootstrap CIs are stored as 2-element lists ending in _ci; index them
+        # by the metric they describe so we can attach error bars later.
+        if k.endswith("_ci") and isinstance(v, list) and len(v) == 2:
+            base_metric = k[:-3]
+            ci_lookup[(model, bench, base_metric)] = (v[0], v[1])
 
 df_all = pd.DataFrame(rows)
 df_all.to_csv(os.path.join(METRICS_DIR, "all_results_table.csv"), index=False)
@@ -148,12 +154,30 @@ df_bias = df_all[df_all["metric"].isin(bias_metrics)].copy()
 if len(df_bias):
     df_bias["benchmark_metric"] = df_bias["benchmark"] + "\n" + df_bias["metric"]
     fig, ax = plt.subplots(figsize=(12, 5))
-    sns.barplot(data=df_bias, x="benchmark_metric", y="value", hue="model",
-                palette=COLORS, ax=ax)
-    ax.set_title("Bias Metric Comparison: Baseline vs Debiased",
+    width = 0.4
+    metrics_order = list(dict.fromkeys(df_bias["benchmark_metric"]))
+    models_order = ["baseline", "debiased"]
+    for i, mname in enumerate(models_order):
+        xs, ys, errs_lo, errs_hi = [], [], [], []
+        for j, bm in enumerate(metrics_order):
+            sub = df_bias[(df_bias["benchmark_metric"] == bm) & (df_bias["model"] == mname)]
+            if len(sub) == 0:
+                continue
+            v = float(sub["value"].iloc[0])
+            bench = sub["benchmark"].iloc[0]
+            metric = sub["metric"].iloc[0]
+            lo, hi = ci_lookup.get((mname, bench, metric), (None, None))
+            xs.append(j + (i - 0.5) * width)
+            ys.append(v)
+            errs_lo.append(0 if lo is None else max(0, v - lo))
+            errs_hi.append(0 if hi is None else max(0, hi - v))
+        ax.bar(xs, ys, width=width, color=COLORS[mname], label=mname,
+               yerr=[errs_lo, errs_hi], capsize=3, ecolor="black")
+    ax.set_xticks(range(len(metrics_order)))
+    ax.set_xticklabels(metrics_order, rotation=25, ha="right")
+    ax.set_title("Bias Metric Comparison: Baseline vs Debiased (95% bootstrap CI)",
                  fontsize=13, fontweight="bold")
     ax.set_xlabel("Benchmark / Metric"); ax.set_ylabel("Value")
-    ax.tick_params(axis="x", rotation=25)
     ax.legend(title="Model")
     plt.tight_layout()
     out = os.path.join(FIGURES_DIR, "comparison_bias_metrics.png")

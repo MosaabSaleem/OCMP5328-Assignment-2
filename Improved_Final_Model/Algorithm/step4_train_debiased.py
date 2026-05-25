@@ -65,8 +65,11 @@ def compute_clp_loss(logits_o, logits_c, mask):
     """
     Symmetric KL divergence between token distributions of the
     original and counterfactual sentence pair, averaged over
-    non-padding positions.
+    non-padding positions present in BOTH sequences.
     L_CLP = 0.5 * ( KL(p_o || p_c) + KL(p_c || p_o) )
+    Caller must pass an intersection mask (o_mask & c_mask) so we
+    don't compare a real position against a padded one when the
+    counterfactual tokenizes to a different length (e.g. man↔woman).
     """
     p_o = F.softmax(logits_o, dim=-1).clamp(min=1e-9)
     p_c = F.softmax(logits_c, dim=-1).clamp(min=1e-9)
@@ -114,7 +117,8 @@ for epoch in range(EPOCHS):
                     labels=o_labels)
         out_c = mdl(input_ids=batch["c_ids"], attention_mask=batch["c_mask"],
                     labels=c_labels)
-        l_clp = compute_clp_loss(out_o.logits, out_c.logits, batch["o_mask"])
+        clp_mask = batch["o_mask"] * batch["c_mask"]
+        l_clp = compute_clp_loss(out_o.logits, out_c.logits, clp_mask)
         loss  = out_o.loss + out_c.loss + LAMBDA_CLP * l_clp
         scaled_loss = loss / GRAD_ACCUM
 

@@ -156,6 +156,10 @@ def load_winobias_type1_pairs(n_pairs):
 def load_bold_gender(n):
     """
     BOLD gender-prompt subset. Returns a list of {prompt, domain} dicts.
+    Balances across domains (American_actors / American_actresses) so that
+    the resulting sample is not dominated by whichever domain comes first
+    in the source JSON — otherwise the "gender gap" metric mostly measures
+    coherence on male-skewed prompts instead of bias.
     """
     urls = [
         "https://raw.githubusercontent.com/amazon-science/bold/main/prompts/gender_prompt.json",
@@ -164,11 +168,29 @@ def load_bold_gender(n):
     path = _try_download(urls, os.path.join(CACHE_DIR, "bold_gender_prompt.json"))
     with open(path) as f:
         data = json.load(f)
-    rows = []
+
+    # Build a flat (domain, person, prompt) list per domain, then round-robin.
+    per_domain = {}
     for domain, people in data.items():
+        flat = []
         for _person, prompts in people.items():
             for p in prompts:
-                rows.append({"prompt": p, "domain": domain})
-                if n and len(rows) >= n:
-                    return rows
+                flat.append({"prompt": p, "domain": domain})
+        per_domain[domain] = flat
+
+    rows = []
+    cursors = {d: 0 for d in per_domain}
+    target = n if n else sum(len(v) for v in per_domain.values())
+    domains = list(per_domain.keys())
+    while len(rows) < target:
+        progressed = False
+        for d in domains:
+            if cursors[d] < len(per_domain[d]):
+                rows.append(per_domain[d][cursors[d]])
+                cursors[d] += 1
+                progressed = True
+                if len(rows) >= target:
+                    break
+        if not progressed:
+            break
     return rows
