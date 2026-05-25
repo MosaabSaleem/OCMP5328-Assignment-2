@@ -5,6 +5,7 @@ cached under Input_data/cache/ so they download only once.
 Each loader tries a list of candidate URLs and uses the first that works.
 """
 import os
+import csv
 import json
 import re
 import urllib.request
@@ -37,10 +38,35 @@ def _try_download(urls, dest):
     raise RuntimeError(f"All download URLs failed. Last error: {last_err}")
 
 
-def load_stereoset_intrasentence(n):
+def load_crowspairs(n, bias_type=None):
+    """
+    CrowS-Pairs test set. Returns a list of dicts with keys:
+      sent_more, sent_less, bias_type, stereo_antistereo
+    If bias_type is given (e.g. 'gender'), filters to that subset first.
+    """
+    urls = [
+        "https://raw.githubusercontent.com/nyu-mll/crows-pairs/master/data/crows_pairs_anonymized.csv",
+    ]
+    path = _try_download(urls, os.path.join(CACHE_DIR, "crows_pairs_anonymized.csv"))
+    rows = []
+    with open(path, newline="", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            if bias_type and r.get("bias_type", "").strip().lower() != bias_type.lower():
+                continue
+            rows.append({
+                "sent_more":         r.get("sent_more", ""),
+                "sent_less":         r.get("sent_less", ""),
+                "bias_type":         r.get("bias_type", ""),
+                "stereo_antistereo": r.get("stereo_antistereo", ""),
+            })
+    return rows[:n] if n and n < len(rows) else rows
+
+
+def load_stereoset_intrasentence(n, bias_type=None):
     """
     StereoSet intrasentence dev split. Returns a list of dicts with keys:
-      context, sentences (each with gold_label, sentence)
+      context, sentences (each with gold_label, sentence), bias_type
+    If bias_type is given (e.g. 'gender'), filters to that subset first.
     """
     urls = [
         "https://raw.githubusercontent.com/moinnadeem/StereoSet/master/data/dev.json",
@@ -51,6 +77,8 @@ def load_stereoset_intrasentence(n):
     with open(path) as f:
         data = json.load(f)
     items = data["data"]["intrasentence"]
+    if bias_type:
+        items = [x for x in items if x.get("bias_type", "").strip().lower() == bias_type.lower()]
     return items[:n] if n and n < len(items) else items
 
 

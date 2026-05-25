@@ -12,10 +12,11 @@ import sys, os, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SIZE
 from Algorithm._model_helpers import load_model, seq_logprob
-from Algorithm._dataset_loaders import load_stereoset_intrasentence
+from Algorithm._dataset_loaders import load_crowspairs, load_stereoset_intrasentence
 
 import pandas as pd
-from datasets import load_dataset
+
+BIAS_TYPE = "gender"
 
 
 def eval_crowspairs(mdl, tok, n):
@@ -23,10 +24,8 @@ def eval_crowspairs(mdl, tok, n):
     For each (sent_more, sent_less) pair, check which the model prefers.
     stereotype_preference_rate = fraction where model prefers sent_more.
     """
-    print(f"  [CrowS-Pairs] evaluating {n} examples...")
-    ds = load_dataset("nyu-mll/crows_pairs", split="test")
-    if n < len(ds):
-        ds = ds.select(range(n))
+    print(f"  [CrowS-Pairs] evaluating up to {n} {BIAS_TYPE} examples...")
+    ds = load_crowspairs(n, bias_type=BIAS_TYPE)
 
     rows = []
     for ex in ds:
@@ -47,6 +46,7 @@ def eval_crowspairs(mdl, tok, n):
     df = pd.DataFrame(rows)
     summary = {
         "n": len(df),
+        "bias_type": BIAS_TYPE,
         "stereotype_preference_rate": round(float(df["prefers_stereotype"].mean()), 4) if len(df) else None,
         "logprob_gap_mean": round(float(df["logprob_gap"].mean()), 4) if len(df) else None,
         "logprob_gap_std":  round(float(df["logprob_gap"].std()),  4) if len(df) else None,
@@ -59,8 +59,8 @@ def eval_stereoset(mdl, tok, n):
     Score stereotype vs anti-stereotype sentence completions.
     stereotype_preference_rate = fraction where model scores stereotype higher.
     """
-    print(f"  [StereoSet] evaluating {n} examples...")
-    ds = load_stereoset_intrasentence(n)
+    print(f"  [StereoSet] evaluating up to {n} {BIAS_TYPE} examples...")
+    ds = load_stereoset_intrasentence(n, bias_type=BIAS_TYPE)
 
     rows = []
     for ex in ds:
@@ -82,11 +82,13 @@ def eval_stereoset(mdl, tok, n):
                 "anti_score":   round(scores["anti-stereotype"], 4),
                 "score_gap":    round(gap, 4),
                 "prefers_stereotype": int(gap > 0),
+                "bias_type": ex.get("bias_type", ""),
             })
 
     df = pd.DataFrame(rows)
     summary = {
         "n": len(df),
+        "bias_type": BIAS_TYPE,
         "stereotype_preference_rate": round(float(df["prefers_stereotype"].mean()), 4) if len(df) else None,
         "score_gap_mean": round(float(df["score_gap"].mean()), 4) if len(df) else None,
         "score_gap_std":  round(float(df["score_gap"].std()),  4) if len(df) else None,
@@ -101,12 +103,12 @@ for model_name in ["baseline", "debiased"]:
     df_c, s_c = eval_crowspairs(mdl, tok, EVAL_SIZE)
     df_c.to_csv(os.path.join(METRICS_DIR, f"{model_name}_crowspairs.csv"), index=False)
     with open(os.path.join(METRICS_DIR, f"{model_name}_crowspairs_summary.json"), "w") as f:
-        json.dump({"model": model_name, "benchmark": "CrowS-Pairs", **s_c}, f, indent=2)
+        json.dump({"model": model_name, "benchmark": "CrowS-Pairs (gender)", **s_c}, f, indent=2)
 
     df_s, s_s = eval_stereoset(mdl, tok, EVAL_SIZE)
     df_s.to_csv(os.path.join(METRICS_DIR, f"{model_name}_stereoset.csv"), index=False)
     with open(os.path.join(METRICS_DIR, f"{model_name}_stereoset_summary.json"), "w") as f:
-        json.dump({"model": model_name, "benchmark": "StereoSet", **s_s}, f, indent=2)
+        json.dump({"model": model_name, "benchmark": "StereoSet (gender)", **s_s}, f, indent=2)
 
     del mdl, tok
     print(f"  CrowS SPR={s_c['stereotype_preference_rate']}  StereoSet SPR={s_s['stereotype_preference_rate']}")
