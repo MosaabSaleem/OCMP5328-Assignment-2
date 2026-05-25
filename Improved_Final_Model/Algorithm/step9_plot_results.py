@@ -19,13 +19,109 @@ import seaborn as sns
 
 sns.set_theme(style="whitegrid", palette="Set2")
 COLORS = {"baseline": "#5591c7", "debiased": "#6daa45"}
+EXPECTED_MODELS = {"baseline", "debiased"}
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def benchmark_eval_script(benchmark):
+    """Map each summary benchmark to the eval script that should produce it."""
+    if benchmark.startswith("CrowS-Pairs") or benchmark.startswith("StereoSet"):
+        return "step5_eval_probability.py"
+    if benchmark.startswith("Embedding cosine"):
+        return "step6_eval_embedding.py"
+    if benchmark in {"WinoBias", "BOLD"}:
+        return "step7_eval_generated.py"
+    if benchmark == "Utility":
+        return "step8_eval_utility.py"
+    return None
+
+
+def summary_csv_path(summary):
+    """Return the detail CSV path implied by a summary JSON filename."""
+    source = summary.get("_source_file", "")
+    csv_name = source.replace("_summary.json", ".csv")
+    return os.path.join(METRICS_DIR, csv_name)
+
+
+def validate_summary_files(summaries):
+    """
+    Fail fast if Step 9 is about to mix partial or stale metrics.
+    Benchmarks should have both baseline/debiased summaries, matching n values,
+    and matching detail CSV schemas when detail CSVs exist.
+    """
+    if not summaries:
+        raise RuntimeError(f"No *_summary.json files found in {METRICS_DIR}")
+
+    errors = []
+    by_benchmark = {}
+    for obj in summaries:
+        bench = obj.get("benchmark", "")
+        model = obj.get("model", "")
+        source_path = os.path.join(METRICS_DIR, obj.get("_source_file", ""))
+        if bench and model in EXPECTED_MODELS:
+            by_benchmark.setdefault(bench, {})[model] = obj
+
+        script_name = benchmark_eval_script(bench)
+        if script_name:
+            script_path = os.path.join(SCRIPT_DIR, script_name)
+            if os.path.isfile(source_path) and os.path.isfile(script_path):
+                if os.path.getmtime(source_path) < os.path.getmtime(script_path):
+                    errors.append(
+                        f"{obj.get('_source_file')}: older than {script_name}; "
+                        "rerun that eval step"
+                    )
+
+        if "n" in obj:
+            csv_path = summary_csv_path(obj)
+            if not os.path.isfile(csv_path):
+                errors.append(f"{obj.get('_source_file')}: missing detail CSV {os.path.basename(csv_path)}")
+            else:
+                csv_rows = len(pd.read_csv(csv_path))
+                if csv_rows != int(obj["n"]):
+                    errors.append(
+                        f"{obj.get('_source_file')}: summary n={obj['n']} "
+                        f"but {os.path.basename(csv_path)} has {csv_rows} rows"
+                    )
+
+    for bench, models in sorted(by_benchmark.items()):
+        missing = EXPECTED_MODELS - set(models)
+        if missing:
+            errors.append(f"{bench}: missing summaries for {', '.join(sorted(missing))}")
+            continue
+
+        if all("n" in models[m] for m in EXPECTED_MODELS):
+            n_base = models["baseline"]["n"]
+            n_debiased = models["debiased"]["n"]
+            if n_base != n_debiased:
+                errors.append(f"{bench}: baseline n={n_base}, debiased n={n_debiased}")
+
+        csv_columns = {}
+        for model, obj in models.items():
+            if "n" not in obj:
+                continue
+            csv_path = summary_csv_path(obj)
+            if os.path.isfile(csv_path):
+                csv_columns[model] = list(pd.read_csv(csv_path, nrows=0).columns)
+        if set(csv_columns) == EXPECTED_MODELS and csv_columns["baseline"] != csv_columns["debiased"]:
+            errors.append(f"{bench}: baseline/debiased detail CSV columns do not match")
+
+    if errors:
+        msg = "\n".join(f"  - {e}" for e in errors)
+        raise RuntimeError(f"Metric validation failed; rerun the affected eval step(s):\n{msg}")
 
 
 # ── Collect all *_summary.json files ──────────────────────────────────────────
-rows = []
+summaries = []
 for fpath in glob.glob(os.path.join(METRICS_DIR, "*_summary.json")):
     with open(fpath) as f:
         obj = json.load(f)
+    obj["_source_file"] = os.path.basename(fpath)
+    summaries.append(obj)
+
+validate_summary_files(summaries)
+
+rows = []
+for obj in summaries:
     model = obj.get("model", "")
     bench = obj.get("benchmark", "")
     for k, v in obj.items():
