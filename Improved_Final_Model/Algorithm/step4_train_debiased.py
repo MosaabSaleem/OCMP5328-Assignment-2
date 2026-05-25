@@ -32,6 +32,8 @@ from torch.optim import AdamW
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import LoraConfig, get_peft_model
 
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 class CDAPairDataset(Dataset):
     """Loads (original, counterfactual) biography pairs for CLP training."""
@@ -88,8 +90,10 @@ mdl = get_peft_model(mdl, LoraConfig(
     bias="none", task_type="CAUSAL_LM",
     target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]
 ))
+mdl.to(DEVICE)
 mdl.print_trainable_parameters()
 mdl.train()
+print(f"[Step 4] Training on device: {DEVICE}")
 
 loader  = DataLoader(CDAPairDataset(df, tok, MAX_LENGTH),
                      batch_size=BATCH_SIZE, shuffle=True)
@@ -100,6 +104,7 @@ t0      = time.time()
 for epoch in range(EPOCHS):
     for step, batch in enumerate(loader):
         opt.zero_grad()
+        batch = {k: v.to(DEVICE) for k, v in batch.items()}
 
         out_o = mdl(input_ids=batch["o_ids"], attention_mask=batch["o_mask"],
                     labels=batch["o_ids"])

@@ -1,0 +1,10 @@
+results/
+wandb/
+.venv/
+.venv311/
+__pycache__
+.DS_Store
+.env
+*.md
+data/
+output/

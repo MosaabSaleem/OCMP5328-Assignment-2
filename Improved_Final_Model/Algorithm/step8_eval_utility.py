@@ -25,11 +25,12 @@ UTILITY_PROMPTS = [
 
 def compute_perplexity(mdl, tok, n=50, max_length=128):
     """WikiText-2 perplexity. Lower = better language model quality."""
-    ds    = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
-    texts = [t for t in ds["text"] if len(t.strip()) > 50][:n]
-    nlls  = []
+    ds     = load_dataset("Salesforce/wikitext", "wikitext-2-raw-v1", split="test")
+    texts  = [t for t in ds["text"] if len(t.strip()) > 50][:n]
+    device = next(mdl.parameters()).device
+    nlls   = []
     for text in texts:
-        enc = tok(text, return_tensors="pt", truncation=True, max_length=max_length)
+        enc = tok(text, return_tensors="pt", truncation=True, max_length=max_length).to(device)
         with torch.no_grad():
             nll = float(mdl(**enc, labels=enc["input_ids"]).loss)
         nlls.append(nll)

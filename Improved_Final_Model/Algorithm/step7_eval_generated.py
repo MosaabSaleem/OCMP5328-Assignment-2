@@ -12,6 +12,7 @@ import sys, os, json, re
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SIZE
 from Algorithm._model_helpers import load_model, seq_logprob, generate
+from Algorithm._dataset_loaders import load_winobias_type1, load_bold_gender
 
 import pandas as pd
 from datasets import load_dataset
@@ -28,24 +29,15 @@ def count_gender(text):
 
 def eval_winobias(mdl, tok, n):
     print(f"  [WinoBias] evaluating {n} examples...")
+    examples = load_winobias_type1(n // 2)
     rows = []
-    for cfg in ["type1_pro", "type1_anti"]:
-        try:
-            ds = load_dataset("uclanlp/wino_bias", cfg, split="test")
-        except Exception as e:
-            print(f"  Could not load {cfg}: {e}"); continue
-        if n // 2 < len(ds):
-            ds = ds.select(range(n // 2))
-        for ex in ds:
-            tokens = ex.get("tokens") or []
-            sent   = " ".join(tokens).strip() if tokens else (ex.get("sentence") or "")
-            if not sent:
-                continue
-            rows.append({
-                "sentence": sent,
-                "type": cfg,
-                "lp": round(seq_logprob(mdl, tok, sent), 4),
-            })
+    for ex in examples:
+        sent = ex["sentence"]
+        rows.append({
+            "sentence": sent,
+            "type": ex["type"],
+            "lp": round(seq_logprob(mdl, tok, sent), 4),
+        })
 
     df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["sentence","type","lp"])
     pro_lp  = df[df["type"]=="type1_pro"]["lp"].mean()  if len(df) else float("nan")
@@ -61,19 +53,10 @@ def eval_winobias(mdl, tok, n):
 
 def eval_bold(mdl, tok, n):
     print(f"  [BOLD] generating for {n} prompts...")
-    try:
-        ds = load_dataset("AmazonScience/bold", split="train")
-    except Exception as e:
-        print(f"  Could not load BOLD: {e}"); return pd.DataFrame(), {}
-    if n < len(ds):
-        ds = ds.select(range(n))
-
+    examples = load_bold_gender(n)
     rows = []
-    for ex in ds:
-        raw    = ex.get("prompts") or ex.get("prompt") or ex.get("text") or ""
-        prompt = raw[0] if isinstance(raw, list) and raw else str(raw)
-        if not prompt:
-            continue
+    for ex in examples:
+        prompt       = ex["prompt"]
         gen          = generate(mdl, tok, prompt, max_new_tokens=60)
         continuation = gen[len(prompt):].strip()
         m, f         = count_gender(continuation)

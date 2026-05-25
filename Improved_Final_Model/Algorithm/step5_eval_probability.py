@@ -12,6 +12,7 @@ import sys, os, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SIZE
 from Algorithm._model_helpers import load_model, seq_logprob
+from Algorithm._dataset_loaders import load_stereoset_intrasentence
 
 import pandas as pd
 from datasets import load_dataset
@@ -59,12 +60,7 @@ def eval_stereoset(mdl, tok, n):
     stereotype_preference_rate = fraction where model scores stereotype higher.
     """
     print(f"  [StereoSet] evaluating {n} examples...")
-    try:
-        ds = load_dataset("McGill-NLP/stereoset", "intrasentence", split="validation")
-    except Exception:
-        ds = load_dataset("McGill-NLP/stereoset", split="validation")
-    if n < len(ds):
-        ds = ds.select(range(n))
+    ds = load_stereoset_intrasentence(n)
 
     rows = []
     for ex in ds:
