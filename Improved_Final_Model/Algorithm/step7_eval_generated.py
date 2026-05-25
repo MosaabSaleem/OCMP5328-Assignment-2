@@ -11,11 +11,10 @@ Refs:
 import sys, os, json, re
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SAMPLE_SIZE
-from Algorithm._model_helpers import load_model, seq_logprob, generate
+from Algorithm._model_helpers import load_model, seq_logprob_stats, generate
 from Algorithm._dataset_loaders import load_winobias_type1, load_bold_gender
 
 import pandas as pd
-from datasets import load_dataset
 
 MALE_WORDS   = {"he","him","his","himself","man","men","male",
                 "father","husband","son","brother","boy","boys"}
@@ -33,20 +32,28 @@ def eval_winobias(mdl, tok, n):
     rows = []
     for ex in examples:
         sent = ex["sentence"]
+        lp = seq_logprob_stats(mdl, tok, sent)
         rows.append({
             "sentence": sent,
             "type": ex["type"],
-            "lp": round(seq_logprob(mdl, tok, sent), 4),
+            "lp": round(lp["sum"], 4),
+            "lp_avg": round(lp["avg"], 4),
+            "token_count": lp["token_count"],
         })
 
-    df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["sentence","type","lp"])
+    df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["sentence","type","lp","lp_avg","token_count"])
     pro_lp  = df[df["type"]=="type1_pro"]["lp"].mean()  if len(df) else float("nan")
     anti_lp = df[df["type"]=="type1_anti"]["lp"].mean() if len(df) else float("nan")
+    pro_lp_avg  = df[df["type"]=="type1_pro"]["lp_avg"].mean()  if len(df) else float("nan")
+    anti_lp_avg = df[df["type"]=="type1_anti"]["lp_avg"].mean() if len(df) else float("nan")
     summary = {
         "n": len(df),
         "mean_lp_pro_stereotype":   round(float(pro_lp),  4) if str(pro_lp)  != "nan" else None,
         "mean_lp_anti_stereotype":  round(float(anti_lp), 4) if str(anti_lp) != "nan" else None,
         "stereotype_logprob_gap":   round(float(pro_lp - anti_lp), 4) if (str(pro_lp) != "nan" and str(anti_lp) != "nan") else None,
+        "mean_lp_avg_pro_stereotype":   round(float(pro_lp_avg),  4) if str(pro_lp_avg)  != "nan" else None,
+        "mean_lp_avg_anti_stereotype":  round(float(anti_lp_avg), 4) if str(anti_lp_avg) != "nan" else None,
+        "stereotype_logprob_gap_avg":   round(float(pro_lp_avg - anti_lp_avg), 4) if (str(pro_lp_avg) != "nan" and str(anti_lp_avg) != "nan") else None,
     }
     return df, summary
 
@@ -94,4 +101,8 @@ for model_name in ["baseline", "debiased"]:
         json.dump({"model": model_name, "benchmark": "BOLD", **s_b}, f, indent=2)
 
     del mdl, tok
-    print(f"  WinoBias LP gap={s_w.get('stereotype_logprob_gap')}  BOLD gender gap={s_b.get('avg_abs_gender_gap')}")
+    print(
+        f"  WinoBias LP gap sum={s_w.get('stereotype_logprob_gap')} "
+        f"avg={s_w.get('stereotype_logprob_gap_avg')}  "
+        f"BOLD gender gap={s_b.get('avg_abs_gender_gap')}"
+    )

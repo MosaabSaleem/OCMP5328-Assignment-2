@@ -40,20 +40,24 @@ print(f"[Step 9] Collected {len(df_all)} metric values")
 # ── Plot 1: Bias metrics grouped bar chart ─────────────────────────────────────
 bias_metrics = [
     "stereotype_preference_rate",
+    "stereotype_preference_rate_avg",
     "score_gap_mean",
+    "score_gap_avg_mean",
     "mean_cosine_distance",
     "stereotype_logprob_gap",
+    "stereotype_logprob_gap_avg",
     "avg_abs_gender_gap",
 ]
 df_bias = df_all[df_all["metric"].isin(bias_metrics)].copy()
 if len(df_bias):
+    df_bias["benchmark_metric"] = df_bias["benchmark"] + "\n" + df_bias["metric"]
     fig, ax = plt.subplots(figsize=(12, 5))
-    sns.barplot(data=df_bias, x="metric", y="value", hue="model",
+    sns.barplot(data=df_bias, x="benchmark_metric", y="value", hue="model",
                 palette=COLORS, ax=ax)
     ax.set_title("Bias Metric Comparison: Baseline vs Debiased",
                  fontsize=13, fontweight="bold")
-    ax.set_xlabel("Metric"); ax.set_ylabel("Value")
-    ax.tick_params(axis="x", rotation=18)
+    ax.set_xlabel("Benchmark / Metric"); ax.set_ylabel("Value")
+    ax.tick_params(axis="x", rotation=25)
     ax.legend(title="Model")
     plt.tight_layout()
     out = os.path.join(FIGURES_DIR, "comparison_bias_metrics.png")

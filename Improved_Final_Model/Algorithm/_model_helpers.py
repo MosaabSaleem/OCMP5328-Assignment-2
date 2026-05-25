@@ -39,19 +39,37 @@ def load_model(path):
 
 
 @torch.no_grad()
-def seq_logprob(mdl, tok, text, max_length=None):
-    """Sum log-probability of the tokens in `text` under `mdl`."""
+def seq_logprob_stats(mdl, tok, text, max_length=None):
+    """
+    Return summed and per-token average sequence log-probability.
+    We keep both because summed log-probability is the standard sequence score
+    but is length-sensitive, while token-average log-probability is easier to
+    compare when paired benchmark sentences have different token lengths.
+    """
     max_length = max_length or MAX_LENGTH
     enc = tok(text, return_tensors="pt", truncation=True, max_length=max_length).to(DEVICE)
     input_ids = enc["input_ids"]
     if input_ids.shape[1] < 2:
-        return 0.0
+        return {"sum": 0.0, "avg": 0.0, "token_count": 0}
     logits = mdl(**enc).logits
     shift_logits = logits[:, :-1, :]
     shift_labels = input_ids[:, 1:]
     log_probs = F.log_softmax(shift_logits, dim=-1)
     token_lp = log_probs.gather(-1, shift_labels.unsqueeze(-1)).squeeze(-1)
-    return float(token_lp.sum().item())
+    lp_sum = float(token_lp.sum().item())
+    token_count = int(token_lp.numel())
+    return {
+        "sum": lp_sum,
+        "avg": lp_sum / max(token_count, 1),
+        "token_count": token_count,
+    }
+
+
+@torch.no_grad()
+def seq_logprob(mdl, tok, text, max_length=None, average=False):
+    """Backward-compatible sequence score helper: sum by default, average if requested."""
+    stats = seq_logprob_stats(mdl, tok, text, max_length=max_length)
+    return stats["avg"] if average else stats["sum"]
 
 
 @torch.no_grad()

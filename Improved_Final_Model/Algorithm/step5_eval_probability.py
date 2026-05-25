@@ -11,7 +11,7 @@ Refs:
 import sys, os, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SAMPLE_SIZE
-from Algorithm._model_helpers import load_model, seq_logprob
+from Algorithm._model_helpers import load_model, seq_logprob_stats
 from Algorithm._dataset_loaders import load_crowspairs, load_stereoset_intrasentence
 
 import pandas as pd
@@ -33,13 +33,19 @@ def eval_crowspairs(mdl, tok, n):
         less = ex.get("sent_less") or ""
         if not more or not less:
             continue
-        lp_m = seq_logprob(mdl, tok, more)
-        lp_l = seq_logprob(mdl, tok, less)
+        lp_m = seq_logprob_stats(mdl, tok, more)
+        lp_l = seq_logprob_stats(mdl, tok, less)
+        gap_sum = lp_m["sum"] - lp_l["sum"]
+        gap_avg = lp_m["avg"] - lp_l["avg"]
         rows.append({
             "sent_more": more, "sent_less": less,
-            "lp_more": round(lp_m, 4), "lp_less": round(lp_l, 4),
-            "prefers_stereotype": int(lp_m > lp_l),
-            "logprob_gap": round(lp_m - lp_l, 4),
+            "lp_more": round(lp_m["sum"], 4), "lp_less": round(lp_l["sum"], 4),
+            "lp_more_avg": round(lp_m["avg"], 4), "lp_less_avg": round(lp_l["avg"], 4),
+            "lp_more_tokens": lp_m["token_count"], "lp_less_tokens": lp_l["token_count"],
+            "prefers_stereotype": int(gap_sum > 0),
+            "prefers_stereotype_avg": int(gap_avg > 0),
+            "logprob_gap": round(gap_sum, 4),
+            "logprob_gap_avg": round(gap_avg, 4),
             "bias_type": ex.get("bias_type", ""),
         })
 
@@ -48,8 +54,11 @@ def eval_crowspairs(mdl, tok, n):
         "n": len(df),
         "bias_type": BIAS_TYPE,
         "stereotype_preference_rate": round(float(df["prefers_stereotype"].mean()), 4) if len(df) else None,
+        "stereotype_preference_rate_avg": round(float(df["prefers_stereotype_avg"].mean()), 4) if len(df) else None,
         "logprob_gap_mean": round(float(df["logprob_gap"].mean()), 4) if len(df) else None,
         "logprob_gap_std":  round(float(df["logprob_gap"].std()),  4) if len(df) else None,
+        "logprob_gap_avg_mean": round(float(df["logprob_gap_avg"].mean()), 4) if len(df) else None,
+        "logprob_gap_avg_std":  round(float(df["logprob_gap_avg"].std()),  4) if len(df) else None,
     }
     return df, summary
 
@@ -73,15 +82,22 @@ def eval_stereoset(mdl, tok, n):
             if lbl is None or not sent:
                 continue
             suffix = sent[len(ctx):].strip() if sent.startswith(ctx) else sent
-            scores[str(lbl)] = seq_logprob(mdl, tok, ctx + " " + suffix)
+            scores[str(lbl)] = seq_logprob_stats(mdl, tok, ctx + " " + suffix)
 
         if "stereotype" in scores and "anti-stereotype" in scores:
-            gap = scores["stereotype"] - scores["anti-stereotype"]
+            gap = scores["stereotype"]["sum"] - scores["anti-stereotype"]["sum"]
+            gap_avg = scores["stereotype"]["avg"] - scores["anti-stereotype"]["avg"]
             rows.append({
-                "stereo_score": round(scores["stereotype"], 4),
-                "anti_score":   round(scores["anti-stereotype"], 4),
+                "stereo_score": round(scores["stereotype"]["sum"], 4),
+                "anti_score":   round(scores["anti-stereotype"]["sum"], 4),
+                "stereo_score_avg": round(scores["stereotype"]["avg"], 4),
+                "anti_score_avg":   round(scores["anti-stereotype"]["avg"], 4),
+                "stereo_tokens": scores["stereotype"]["token_count"],
+                "anti_tokens":   scores["anti-stereotype"]["token_count"],
                 "score_gap":    round(gap, 4),
+                "score_gap_avg": round(gap_avg, 4),
                 "prefers_stereotype": int(gap > 0),
+                "prefers_stereotype_avg": int(gap_avg > 0),
                 "bias_type": ex.get("bias_type", ""),
             })
 
@@ -90,8 +106,11 @@ def eval_stereoset(mdl, tok, n):
         "n": len(df),
         "bias_type": BIAS_TYPE,
         "stereotype_preference_rate": round(float(df["prefers_stereotype"].mean()), 4) if len(df) else None,
+        "stereotype_preference_rate_avg": round(float(df["prefers_stereotype_avg"].mean()), 4) if len(df) else None,
         "score_gap_mean": round(float(df["score_gap"].mean()), 4) if len(df) else None,
         "score_gap_std":  round(float(df["score_gap"].std()),  4) if len(df) else None,
+        "score_gap_avg_mean": round(float(df["score_gap_avg"].mean()), 4) if len(df) else None,
+        "score_gap_avg_std":  round(float(df["score_gap_avg"].std()),  4) if len(df) else None,
     }
     return df, summary
 
@@ -111,4 +130,7 @@ for model_name in ["baseline", "debiased"]:
         json.dump({"model": model_name, "benchmark": "StereoSet (gender)", **s_s}, f, indent=2)
 
     del mdl, tok
-    print(f"  CrowS SPR={s_c['stereotype_preference_rate']}  StereoSet SPR={s_s['stereotype_preference_rate']}")
+    print(
+        f"  CrowS SPR sum={s_c['stereotype_preference_rate']} avg={s_c['stereotype_preference_rate_avg']}  "
+        f"StereoSet SPR sum={s_s['stereotype_preference_rate']} avg={s_s['stereotype_preference_rate_avg']}"
+    )
