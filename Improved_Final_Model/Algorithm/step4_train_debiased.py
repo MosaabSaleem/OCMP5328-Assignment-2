@@ -21,7 +21,7 @@ Refs:
 import sys, os, time, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import (MODEL_NAME, DATA_DIR, MODEL_DIR, METRICS_DIR,
-                               EPOCHS, BATCH_SIZE, LR, MAX_LENGTH, LAMBDA_CLP,
+                               EPOCHS, BATCH_SIZE, GRAD_ACCUM, LR, MAX_LENGTH, LAMBDA_CLP,
                                LORA_R, LORA_ALPHA, LORA_DROPOUT)
 
 import torch
@@ -100,21 +100,28 @@ loader  = DataLoader(CDAPairDataset(df, tok, MAX_LENGTH),
 opt     = AdamW(mdl.parameters(), lr=LR)
 history = []
 t0      = time.time()
+opt.zero_grad()
 
 for epoch in range(EPOCHS):
     for step, batch in enumerate(loader):
-        opt.zero_grad()
         batch = {k: v.to(DEVICE) for k, v in batch.items()}
+        o_labels = batch["o_ids"].clone()
+        c_labels = batch["c_ids"].clone()
+        o_labels[batch["o_mask"] == 0] = -100
+        c_labels[batch["c_mask"] == 0] = -100
 
         out_o = mdl(input_ids=batch["o_ids"], attention_mask=batch["o_mask"],
-                    labels=batch["o_ids"])
+                    labels=o_labels)
         out_c = mdl(input_ids=batch["c_ids"], attention_mask=batch["c_mask"],
-                    labels=batch["c_ids"])
+                    labels=c_labels)
         l_clp = compute_clp_loss(out_o.logits, out_c.logits, batch["o_mask"])
         loss  = out_o.loss + out_c.loss + LAMBDA_CLP * l_clp
+        scaled_loss = loss / GRAD_ACCUM
 
-        loss.backward()
-        opt.step()
+        scaled_loss.backward()
+        if (step + 1) % GRAD_ACCUM == 0 or (step + 1) == len(loader):
+            opt.step()
+            opt.zero_grad()
 
         history.append({
             "epoch": epoch + 1, "step": step + 1,
@@ -135,6 +142,7 @@ with open(os.path.join(METRICS_DIR, "train_debiased.json"), "w") as f:
     json.dump({
         "model": "debiased", "train_seconds": elapsed,
         "train_rows": len(df), "epochs": EPOCHS,
+        "grad_accum": GRAD_ACCUM,
         "lambda_clp": LAMBDA_CLP,
         "final_step": history[-1] if history else {}
     }, f, indent=2)
