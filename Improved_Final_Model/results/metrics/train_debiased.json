@@ -1,0 +1,16 @@
+{
+  "model": "debiased",
+  "train_seconds": 244.34,
+  "train_rows": 500,
+  "epochs": 1,
+  "grad_accum": 2,
+  "lambda_clp": 0.5,
+  "final_step": {
+    "epoch": 1,
+    "step": 500,
+    "loss_total": 6.2705,
+    "loss_lm_orig": 3.1188,
+    "loss_lm_cf": 3.1391,
+    "loss_clp": 0.025
+  }
+}

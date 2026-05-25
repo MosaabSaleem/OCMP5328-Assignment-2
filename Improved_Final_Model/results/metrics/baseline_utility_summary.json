@@ -1,0 +1,10 @@
+{
+  "model": "baseline",
+  "benchmark": "Utility",
+  "perplexity_wikitext2": 29.3071,
+  "mean_nll_loss": 3.3778,
+  "std_nll_loss": 0.7677,
+  "mean_generation_seconds": 2.545,
+  "std_generation_seconds": 0.013,
+  "train_seconds": 116.16
+}

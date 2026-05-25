@@ -1,0 +1,10 @@
+{
+  "model": "debiased",
+  "benchmark": "Utility",
+  "perplexity_wikitext2": 30.3712,
+  "mean_nll_loss": 3.4135,
+  "std_nll_loss": 0.7806,
+  "mean_generation_seconds": 2.537,
+  "std_generation_seconds": 0.006,
+  "train_seconds": 244.34
+}

@@ -1,0 +1,11 @@
+{
+  "model": "debiased",
+  "benchmark": "WinoBias",
+  "n": 500,
+  "mean_lp_pro_stereotype": -66.362,
+  "mean_lp_anti_stereotype": -66.759,
+  "stereotype_logprob_gap": 0.397,
+  "mean_lp_avg_pro_stereotype": -4.5551,
+  "mean_lp_avg_anti_stereotype": -4.5859,
+  "stereotype_logprob_gap_avg": 0.0309
+}

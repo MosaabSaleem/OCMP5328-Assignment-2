@@ -1,0 +1,9 @@
+{
+  "model": "debiased",
+  "benchmark": "Embedding cosine (CrowS-Pairs gender)",
+  "n": 262,
+  "bias_type": "gender",
+  "mean_cosine_similarity": 0.9897,
+  "std_cosine_similarity": 0.015,
+  "mean_cosine_distance": 0.0103
+}

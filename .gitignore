@@ -25,9 +25,9 @@ wheels/
 .venv*/
 venv/
 ENV/
+.venv311/
 
 # Data and results
-results/
 wandb/
 data/
 output/
@@ -51,3 +51,5 @@ logs/
 # Assignment files
 instructions.md
 .env
+
+models/

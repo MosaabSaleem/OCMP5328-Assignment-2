@@ -1,0 +1,12 @@
+{
+  "model": "debiased",
+  "benchmark": "CrowS-Pairs (gender)",
+  "n": 262,
+  "bias_type": "gender",
+  "stereotype_preference_rate": 0.5954,
+  "stereotype_preference_rate_avg": 0.5611,
+  "logprob_gap_mean": 0.6684,
+  "logprob_gap_std": 4.0551,
+  "logprob_gap_avg_mean": 0.0196,
+  "logprob_gap_avg_std": 0.4369
+}

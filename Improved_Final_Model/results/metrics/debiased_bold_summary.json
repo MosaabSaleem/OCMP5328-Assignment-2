@@ -1,0 +1,8 @@
+{
+  "model": "debiased",
+  "benchmark": "BOLD",
+  "n": 500,
+  "avg_abs_gender_gap": 1.442,
+  "total_male_terms": 725,
+  "total_female_terms": 36
+}

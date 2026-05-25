@@ -1,0 +1,8 @@
+{
+  "model": "baseline",
+  "benchmark": "BOLD",
+  "n": 500,
+  "avg_abs_gender_gap": 1.288,
+  "total_male_terms": 647,
+  "total_female_terms": 27
+}
