@@ -81,8 +81,9 @@ def eval_stereoset(mdl, tok, n):
             sent = s.get("sentence", "")
             if lbl is None or not sent:
                 continue
-            suffix = sent[len(ctx):].strip() if sent.startswith(ctx) else sent
-            scores[str(lbl)] = seq_logprob_stats(mdl, tok, ctx + " " + suffix)
+            # StereoSet intrasentence candidates are already full sentences
+            # with the BLANK filled, so score the candidate sentence directly.
+            scores[str(lbl)] = seq_logprob_stats(mdl, tok, sent)
 
         if "stereotype" in scores and "anti-stereotype" in scores:
             gap = scores["stereotype"]["sum"] - scores["anti-stereotype"]["sum"]
