@@ -8,8 +8,14 @@ import os
 MODEL_NAME   = os.environ.get("MODEL_NAME",   "google/gemma-3-1b-pt")
 
 # ── Dataset sizes (lower for CPU / smoke tests) ────────────────────────────────
-SAMPLE_SIZE  = int(os.environ.get("SAMPLE_SIZE",  "50"))   # Bias-in-Bios rows
-EVAL_SIZE    = int(os.environ.get("EVAL_SIZE",    "150"))   # rows per eval dataset
+TRAIN_SAMPLE_SIZE = int(os.environ.get(
+    "TRAIN_SAMPLE_SIZE", os.environ.get("SAMPLE_SIZE", "500")
+))  # Bias-in-Bios training rows
+EVAL_SAMPLE_SIZE = int(os.environ.get(
+    "EVAL_SAMPLE_SIZE", os.environ.get("EVAL_SIZE", "500")
+))  # rows per eval dataset
+SAMPLE_SIZE = TRAIN_SAMPLE_SIZE  # backwards-compatible alias
+EVAL_SIZE = EVAL_SAMPLE_SIZE     # backwards-compatible alias
 SEED         = int(os.environ.get("SEED",         "42"))
 
 # ── Training hyperparameters ───────────────────────────────────────────────────

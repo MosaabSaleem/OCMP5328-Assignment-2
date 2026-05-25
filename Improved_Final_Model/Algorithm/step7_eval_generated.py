@@ -10,7 +10,7 @@ Refs:
 """
 import sys, os, json, re
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SIZE
+from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SAMPLE_SIZE
 from Algorithm._model_helpers import load_model, seq_logprob, generate
 from Algorithm._dataset_loaders import load_winobias_type1, load_bold_gender
 
@@ -83,12 +83,12 @@ for model_name in ["baseline", "debiased"]:
     print(f"\n[Step 7] Generated-text eval — {model_name}")
     mdl, tok = load_model(os.path.join(MODEL_DIR, model_name))
 
-    df_w, s_w = eval_winobias(mdl, tok, EVAL_SIZE)
+    df_w, s_w = eval_winobias(mdl, tok, EVAL_SAMPLE_SIZE)
     df_w.to_csv(os.path.join(METRICS_DIR, f"{model_name}_winobias.csv"), index=False)
     with open(os.path.join(METRICS_DIR, f"{model_name}_winobias_summary.json"), "w") as f:
         json.dump({"model": model_name, "benchmark": "WinoBias", **s_w}, f, indent=2)
 
-    df_b, s_b = eval_bold(mdl, tok, EVAL_SIZE)
+    df_b, s_b = eval_bold(mdl, tok, EVAL_SAMPLE_SIZE)
     df_b.to_csv(os.path.join(METRICS_DIR, f"{model_name}_bold.csv"), index=False)
     with open(os.path.join(METRICS_DIR, f"{model_name}_bold_summary.json"), "w") as f:
         json.dump({"model": model_name, "benchmark": "BOLD", **s_b}, f, indent=2)

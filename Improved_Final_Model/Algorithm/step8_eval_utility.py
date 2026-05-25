@@ -6,7 +6,7 @@ Required by assignment: utility metrics, average, standard deviation, training t
 """
 import sys, os, json, time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SIZE
+from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SAMPLE_SIZE
 from Algorithm._model_helpers import load_model, generate
 
 import numpy as np
@@ -43,7 +43,7 @@ for model_name in ["baseline", "debiased"]:
     print(f"\n[Step 8] Utility eval — {model_name}")
     mdl, tok = load_model(os.path.join(MODEL_DIR, model_name))
 
-    ppl, mean_nll, std_nll = compute_perplexity(mdl, tok, n=EVAL_SIZE)
+    ppl, mean_nll, std_nll = compute_perplexity(mdl, tok, n=EVAL_SAMPLE_SIZE)
 
     gen_times = []
     for prompt in UTILITY_PROMPTS:

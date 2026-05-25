@@ -8,7 +8,7 @@ Covers: Assignment 'embedding-based metrics' category.
 """
 import sys, os, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SIZE
+from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SAMPLE_SIZE
 from Algorithm._model_helpers import load_model, last_hidden
 from Algorithm._dataset_loaders import load_crowspairs
 
@@ -18,7 +18,7 @@ import pandas as pd
 BIAS_TYPE = "gender"
 
 # Use held-out CrowS-Pairs gender examples to avoid evaluating on CDA training pairs.
-df_pairs = pd.DataFrame(load_crowspairs(EVAL_SIZE, bias_type=BIAS_TYPE)).dropna(
+df_pairs = pd.DataFrame(load_crowspairs(EVAL_SAMPLE_SIZE, bias_type=BIAS_TYPE)).dropna(
     subset=["sent_more", "sent_less"]
 )
 

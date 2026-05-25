@@ -10,7 +10,7 @@ Refs:
 """
 import sys, os, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SIZE
+from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SAMPLE_SIZE
 from Algorithm._model_helpers import load_model, seq_logprob
 from Algorithm._dataset_loaders import load_crowspairs, load_stereoset_intrasentence
 
@@ -100,12 +100,12 @@ for model_name in ["baseline", "debiased"]:
     print(f"\n[Step 5] Probability eval — {model_name}")
     mdl, tok = load_model(os.path.join(MODEL_DIR, model_name))
 
-    df_c, s_c = eval_crowspairs(mdl, tok, EVAL_SIZE)
+    df_c, s_c = eval_crowspairs(mdl, tok, EVAL_SAMPLE_SIZE)
     df_c.to_csv(os.path.join(METRICS_DIR, f"{model_name}_crowspairs.csv"), index=False)
     with open(os.path.join(METRICS_DIR, f"{model_name}_crowspairs_summary.json"), "w") as f:
         json.dump({"model": model_name, "benchmark": "CrowS-Pairs (gender)", **s_c}, f, indent=2)
 
-    df_s, s_s = eval_stereoset(mdl, tok, EVAL_SIZE)
+    df_s, s_s = eval_stereoset(mdl, tok, EVAL_SAMPLE_SIZE)
     df_s.to_csv(os.path.join(METRICS_DIR, f"{model_name}_stereoset.csv"), index=False)
     with open(os.path.join(METRICS_DIR, f"{model_name}_stereoset_summary.json"), "w") as f:
         json.dump({"model": model_name, "benchmark": "StereoSet (gender)", **s_s}, f, indent=2)

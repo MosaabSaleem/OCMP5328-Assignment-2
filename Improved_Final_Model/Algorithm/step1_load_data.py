@@ -6,16 +6,16 @@ Ref: De-Arteaga et al., 2019. https://doi.org/10.1145/3287560.3287572
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Algorithm.config import DATA_DIR, SAMPLE_SIZE, SEED
+from Algorithm.config import DATA_DIR, TRAIN_SAMPLE_SIZE, SEED
 
 from datasets import load_dataset
 import pandas as pd
 
-print(f"[Step 1] Downloading Bias-in-Bios  sample={SAMPLE_SIZE}  seed={SEED}")
+print(f"[Step 1] Downloading Bias-in-Bios  train_sample={TRAIN_SAMPLE_SIZE}  seed={SEED}")
 ds = load_dataset("LabHC/bias_in_bios", split="train")
 ds = ds.shuffle(seed=SEED)
-if SAMPLE_SIZE < len(ds):
-    ds = ds.select(range(SAMPLE_SIZE))
+if TRAIN_SAMPLE_SIZE < len(ds):
+    ds = ds.select(range(TRAIN_SAMPLE_SIZE))
 
 cols = ds.column_names
 
