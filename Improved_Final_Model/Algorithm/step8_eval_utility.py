@@ -6,8 +6,8 @@ Required by assignment: utility metrics, average, standard deviation, training t
 """
 import sys, os, json, time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SAMPLE_SIZE
-from Algorithm._model_helpers import load_model, generate
+from Algorithm.config import METRICS_DIR, EVAL_SAMPLE_SIZE, MODELS_TO_EVAL
+from Algorithm._model_helpers import load_model, generate, resolve_model_path
 from Algorithm._stats import bootstrap_ci
 
 import numpy as np
@@ -47,9 +47,9 @@ def compute_perplexity(mdl, tok, n=50, max_length=128):
             ppl_ci)
 
 
-for model_name in ["baseline", "debiased"]:
+for model_name in MODELS_TO_EVAL:
     print(f"\n[Step 8] Utility eval — {model_name}")
-    mdl, tok = load_model(os.path.join(MODEL_DIR, model_name))
+    mdl, tok = load_model(resolve_model_path(model_name))
 
     ppl, mean_nll, std_nll, nll_ci, ppl_ci = compute_perplexity(mdl, tok, n=EVAL_SAMPLE_SIZE)
 

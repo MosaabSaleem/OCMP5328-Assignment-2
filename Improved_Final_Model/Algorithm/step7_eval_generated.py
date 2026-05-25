@@ -10,8 +10,8 @@ Refs:
 """
 import sys, os, json, re
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SAMPLE_SIZE
-from Algorithm._model_helpers import load_model, seq_logprob_stats, generate
+from Algorithm.config import METRICS_DIR, EVAL_SAMPLE_SIZE, MODELS_TO_EVAL
+from Algorithm._model_helpers import load_model, seq_logprob_stats, generate, resolve_model_path
 from Algorithm._dataset_loaders import load_winobias_type1_pairs, load_bold_gender
 from Algorithm._stats import bootstrap_ci
 
@@ -118,9 +118,9 @@ def eval_bold(mdl, tok, n):
     return df, summary
 
 
-for model_name in ["baseline", "debiased"]:
+for model_name in MODELS_TO_EVAL:
     print(f"\n[Step 7] Generated-text eval — {model_name}")
-    mdl, tok = load_model(os.path.join(MODEL_DIR, model_name))
+    mdl, tok = load_model(resolve_model_path(model_name))
 
     df_w, s_w = eval_winobias(mdl, tok, EVAL_SAMPLE_SIZE)
     df_w.to_csv(os.path.join(METRICS_DIR, f"{model_name}_winobias.csv"), index=False)

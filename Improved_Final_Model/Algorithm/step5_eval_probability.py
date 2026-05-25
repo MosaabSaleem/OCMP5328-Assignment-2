@@ -10,8 +10,8 @@ Refs:
 """
 import sys, os, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SAMPLE_SIZE
-from Algorithm._model_helpers import load_model, seq_logprob_stats
+from Algorithm.config import METRICS_DIR, EVAL_SAMPLE_SIZE, MODELS_TO_EVAL
+from Algorithm._model_helpers import load_model, seq_logprob_stats, resolve_model_path
 from Algorithm._dataset_loaders import load_crowspairs, load_stereoset_intrasentence
 from Algorithm._stats import bootstrap_ci
 
@@ -156,9 +156,9 @@ def eval_stereoset(mdl, tok, n):
     return df, summary
 
 
-for model_name in ["baseline", "debiased"]:
+for model_name in MODELS_TO_EVAL:
     print(f"\n[Step 5] Probability eval — {model_name}")
-    mdl, tok = load_model(os.path.join(MODEL_DIR, model_name))
+    mdl, tok = load_model(resolve_model_path(model_name))
 
     df_c, s_c = eval_crowspairs(mdl, tok, EVAL_SAMPLE_SIZE)
     df_c.to_csv(os.path.join(METRICS_DIR, f"{model_name}_crowspairs.csv"), index=False)

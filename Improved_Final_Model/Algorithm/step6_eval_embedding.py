@@ -8,8 +8,8 @@ Covers: Assignment 'embedding-based metrics' category.
 """
 import sys, os, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SAMPLE_SIZE
-from Algorithm._model_helpers import load_model, last_hidden
+from Algorithm.config import METRICS_DIR, EVAL_SAMPLE_SIZE, MODELS_TO_EVAL
+from Algorithm._model_helpers import load_model, last_hidden, resolve_model_path
 from Algorithm._dataset_loaders import load_crowspairs
 from Algorithm._stats import bootstrap_ci
 
@@ -23,9 +23,9 @@ df_pairs = pd.DataFrame(load_crowspairs(EVAL_SAMPLE_SIZE, bias_type=BIAS_TYPE)).
     subset=["sent_more", "sent_less"]
 )
 
-for model_name in ["baseline", "debiased"]:
+for model_name in MODELS_TO_EVAL:
     print(f"\n[Step 6] Embedding eval — {model_name}  ({len(df_pairs)} pairs)")
-    mdl, tok = load_model(os.path.join(MODEL_DIR, model_name))
+    mdl, tok = load_model(resolve_model_path(model_name))
 
     rows = []
     for _, r in df_pairs.iterrows():

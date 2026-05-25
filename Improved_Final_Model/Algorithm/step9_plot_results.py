@@ -9,17 +9,19 @@ Outputs (all in results/figures/):
 """
 import sys, os, json, glob
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Algorithm.config import METRICS_DIR, FIGURES_DIR
+from Algorithm.config import METRICS_DIR, FIGURES_DIR, MODELS_TO_EVAL
+from Algorithm._wandb_log import start as wandb_start, finish as wandb_finish
 
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
+import re
 
 sns.set_theme(style="whitegrid", palette="Set2")
-COLORS = {"baseline": "#5591c7", "debiased": "#6daa45"}
-EXPECTED_MODELS = {"baseline", "debiased"}
+COLORS = {"base_gemma": "#c0a37b", "baseline": "#5591c7", "debiased": "#6daa45"}
+EXPECTED_MODELS = set(MODELS_TO_EVAL)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -90,10 +92,9 @@ def validate_summary_files(summaries):
             continue
 
         if all("n" in models[m] for m in EXPECTED_MODELS):
-            n_base = models["baseline"]["n"]
-            n_debiased = models["debiased"]["n"]
-            if n_base != n_debiased:
-                errors.append(f"{bench}: baseline n={n_base}, debiased n={n_debiased}")
+            ns = {m: models[m]["n"] for m in EXPECTED_MODELS}
+            if len(set(ns.values())) > 1:
+                errors.append(f"{bench}: per-model n disagrees: {ns}")
 
         csv_columns = {}
         for model, obj in models.items():
@@ -102,8 +103,8 @@ def validate_summary_files(summaries):
             csv_path = summary_csv_path(obj)
             if os.path.isfile(csv_path):
                 csv_columns[model] = list(pd.read_csv(csv_path, nrows=0).columns)
-        if set(csv_columns) == EXPECTED_MODELS and csv_columns["baseline"] != csv_columns["debiased"]:
-            errors.append(f"{bench}: baseline/debiased detail CSV columns do not match")
+        if set(csv_columns) == EXPECTED_MODELS and len({tuple(v) for v in csv_columns.values()}) > 1:
+            errors.append(f"{bench}: detail CSV columns disagree across models")
 
     if errors:
         msg = "\n".join(f"  - {e}" for e in errors)
@@ -153,10 +154,11 @@ bias_metrics = [
 df_bias = df_all[df_all["metric"].isin(bias_metrics)].copy()
 if len(df_bias):
     df_bias["benchmark_metric"] = df_bias["benchmark"] + "\n" + df_bias["metric"]
-    fig, ax = plt.subplots(figsize=(12, 5))
-    width = 0.4
+    fig, ax = plt.subplots(figsize=(13, 5))
     metrics_order = list(dict.fromkeys(df_bias["benchmark_metric"]))
-    models_order = ["baseline", "debiased"]
+    models_order = [m for m in MODELS_TO_EVAL if m in df_bias["model"].unique()]
+    n_models = max(len(models_order), 1)
+    width = 0.8 / n_models
     for i, mname in enumerate(models_order):
         xs, ys, errs_lo, errs_hi = [], [], [], []
         for j, bm in enumerate(metrics_order):
@@ -167,15 +169,16 @@ if len(df_bias):
             bench = sub["benchmark"].iloc[0]
             metric = sub["metric"].iloc[0]
             lo, hi = ci_lookup.get((mname, bench, metric), (None, None))
-            xs.append(j + (i - 0.5) * width)
+            # Offset each model's bars symmetrically around the metric tick.
+            xs.append(j + (i - (n_models - 1) / 2) * width)
             ys.append(v)
             errs_lo.append(0 if lo is None else max(0, v - lo))
             errs_hi.append(0 if hi is None else max(0, hi - v))
-        ax.bar(xs, ys, width=width, color=COLORS[mname], label=mname,
+        ax.bar(xs, ys, width=width, color=COLORS.get(mname, "#999"), label=mname,
                yerr=[errs_lo, errs_hi], capsize=3, ecolor="black")
     ax.set_xticks(range(len(metrics_order)))
     ax.set_xticklabels(metrics_order, rotation=25, ha="right")
-    ax.set_title("Bias Metric Comparison: Baseline vs Debiased (95% bootstrap CI)",
+    ax.set_title("Bias Metric Comparison (95% bootstrap CI)",
                  fontsize=13, fontweight="bold")
     ax.set_xlabel("Benchmark / Metric"); ax.set_ylabel("Value")
     ax.legend(title="Model")
@@ -209,7 +212,7 @@ if len(df_util):
 
 # ── Plot 3: BOLD gender gap histogram ─────────────────────────────────────────
 bold_data = {}
-for m in ["baseline", "debiased"]:
+for m in MODELS_TO_EVAL:
     p = os.path.join(METRICS_DIR, f"{m}_bold.csv")
     if os.path.isfile(p):
         bold_data[m] = pd.read_csv(p)
@@ -231,27 +234,41 @@ if bold_data:
 
 
 # ── Plot 4: Debiased training loss curve ──────────────────────────────────────
-train_json = os.path.join(METRICS_DIR, "train_debiased.json")
-if os.path.isfile(train_json):
-    with open(train_json) as f:
-        info = json.load(f)
-    log_csv = os.path.join(os.path.dirname(METRICS_DIR),
-                           "models", "debiased", "trainer_state.json")
-    if os.path.isfile(log_csv):
-        with open(log_csv) as f:
-            state = json.load(f)
-        log_hist = state.get("log_history", [])
-        losses = [(e["step"], e["loss"]) for e in log_hist if "loss" in e]
-        if losses:
-            steps, vals = zip(*losses)
-            fig, ax = plt.subplots(figsize=(8, 4))
-            ax.plot(steps, vals, color=COLORS["debiased"], linewidth=2)
-            ax.set_title("Debiased Model Training Loss", fontsize=12, fontweight="bold")
-            ax.set_xlabel("Step"); ax.set_ylabel("Loss")
-            plt.tight_layout()
-            out = os.path.join(FIGURES_DIR, "training_loss.png")
-            plt.savefig(out, dpi=220); plt.close()
-            print(f"  Saved: {out}")
+# Prefer the explicit history JSON written by step 4 (which uses a custom
+# loop and does not produce a trainer_state.json). Fall back to the
+# Trainer state file if present (older runs).
+history_json = os.path.join(METRICS_DIR, "train_history_debiased.json")
+trainer_state = os.path.join(os.path.dirname(METRICS_DIR), "models", "debiased", "trainer_state.json")
+losses = []
+if os.path.isfile(history_json):
+    with open(history_json) as f:
+        hist = json.load(f)
+    losses = [(i + 1, h.get("loss_total")) for i, h in enumerate(hist) if h.get("loss_total") is not None]
+elif os.path.isfile(trainer_state):
+    with open(trainer_state) as f:
+        state = json.load(f)
+    losses = [(e["step"], e["loss"]) for e in state.get("log_history", []) if "loss" in e]
+if losses:
+    steps, vals = zip(*losses)
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.plot(steps, vals, color=COLORS["debiased"], linewidth=2)
+    # Overlay the LM-only and CLP components if the history JSON has them.
+    if os.path.isfile(history_json):
+        with open(history_json) as f:
+            hist = json.load(f)
+        lm_orig = [(i + 1, h.get("loss_lm_orig")) for i, h in enumerate(hist) if h.get("loss_lm_orig") is not None]
+        clp     = [(i + 1, h.get("loss_clp"))     for i, h in enumerate(hist) if h.get("loss_clp")     is not None]
+        if lm_orig:
+            xs, ys = zip(*lm_orig); ax.plot(xs, ys, alpha=0.6, label="LM(orig)")
+        if clp:
+            xs, ys = zip(*clp); ax.plot(xs, ys, alpha=0.6, label="CLP (raw)")
+        ax.legend()
+    ax.set_title("Debiased Model Training Loss", fontsize=12, fontweight="bold")
+    ax.set_xlabel("Step"); ax.set_ylabel("Loss")
+    plt.tight_layout()
+    out = os.path.join(FIGURES_DIR, "training_loss.png")
+    plt.savefig(out, dpi=220); plt.close()
+    print(f"  Saved: {out}")
 
 
 # ── Print summary table ────────────────────────────────────────────────────────
@@ -262,3 +279,31 @@ if len(df_all):
     print(pivot.to_string())
 
 print(f"\n[Step 9] Done. Figures saved to: {FIGURES_DIR}")
+
+
+# ── Optional: log everything to W&B as one results-summary run ────────────────
+def _slug(s):
+    return re.sub(r"[^a-z0-9]+", "_", str(s).lower()).strip("_") or "v"
+
+wb_run = wandb_start(
+    job_type="results",
+    name="results_summary",
+    config={"models": MODELS_TO_EVAL, "n_metric_rows": len(df_all)},
+)
+if wb_run is not None:
+    # Log per-metric scalars under a stable namespace so the dashboard can
+    # surface them as side-by-side panels across models.
+    for _, row in df_all.iterrows():
+        key = f"final/{_slug(row['benchmark'])}/{_slug(row['metric'])}/{_slug(row['model'])}"
+        wb_run.log({key: float(row["value"])})
+    # The aggregated table + each figure produced by this step.
+    wb_run.log({"all_results_table": __import__("wandb").Table(dataframe=df_all)})
+    for fig_name in ["comparison_bias_metrics.png", "comparison_utility.png",
+                     "bold_gender_gap.png", "training_loss.png"]:
+        fig_path = os.path.join(FIGURES_DIR, fig_name)
+        if os.path.isfile(fig_path):
+            wb_run.log({f"figures/{os.path.splitext(fig_name)[0]}":
+                        __import__("wandb").Image(fig_path)})
+    wb_run.summary["n_metric_rows"] = len(df_all)
+    wb_run.summary["models_evaluated"] = MODELS_TO_EVAL
+wandb_finish(wb_run)

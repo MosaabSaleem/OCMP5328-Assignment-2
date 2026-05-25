@@ -4,32 +4,50 @@ Loads a (possibly LoRA-adapted) causal LM, computes sequence log-probability,
 extracts last-hidden-state sentence embeddings, and runs generation.
 """
 import os
+import json
 import torch
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Algorithm.config import MODEL_NAME, MAX_LENGTH
+from Algorithm.config import MODEL_NAME, MAX_LENGTH, MODEL_DIR
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+def resolve_model_path(model_key):
+    """
+    Map a short model key (e.g. 'base_gemma', 'baseline', 'debiased') to the
+    directory under MODEL_DIR. Eval scripts use this so all model names live
+    in one place and stay consistent across steps 5-8 and step 9.
+    """
+    return os.path.join(MODEL_DIR, model_key)
+
+
 def load_model(path):
     """
-    Load a fine-tuned model from `path`. If a PEFT/LoRA adapter is present
-    (adapter_config.json), load the base model and attach the adapter.
-    Otherwise load `path` directly as a full model.
+    Load a model from `path`. Three modes:
+      - PEFT/LoRA adapter present (adapter_config.json): load MODEL_NAME, attach adapter.
+      - HF reference present (model_reference.json): load the referenced HF model
+        directly, using the local tokenizer files in `path`. Used for base_gemma
+        so we don't duplicate ~2GB of weights to disk.
+      - Otherwise: load `path` as a full local model.
     """
     tok = AutoTokenizer.from_pretrained(path)
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
 
     adapter_cfg = os.path.join(path, "adapter_config.json")
+    ref_cfg     = os.path.join(path, "model_reference.json")
     if os.path.isfile(adapter_cfg):
         from peft import PeftModel
         base = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
         mdl = PeftModel.from_pretrained(base, path)
+    elif os.path.isfile(ref_cfg):
+        with open(ref_cfg) as f:
+            ref = json.load(f)
+        mdl = AutoModelForCausalLM.from_pretrained(ref.get("base_model", MODEL_NAME))
     else:
         mdl = AutoModelForCausalLM.from_pretrained(path)
 

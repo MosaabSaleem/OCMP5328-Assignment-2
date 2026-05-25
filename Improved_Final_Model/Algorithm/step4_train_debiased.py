@@ -32,6 +32,8 @@ from torch.optim import AdamW
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import LoraConfig, get_peft_model
 
+from Algorithm._wandb_log import start as wandb_start, finish as wandb_finish
+
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
@@ -105,6 +107,18 @@ history = []
 t0      = time.time()
 opt.zero_grad()
 
+wb_run = wandb_start(
+    job_type="train_debiased",
+    name="debiased_train",
+    config={
+        "model": MODEL_NAME, "epochs": EPOCHS,
+        "batch_size": BATCH_SIZE, "grad_accum": GRAD_ACCUM,
+        "lr": LR, "max_length": MAX_LENGTH, "lambda_clp": LAMBDA_CLP,
+        "lora_r": LORA_R, "lora_alpha": LORA_ALPHA,
+        "train_rows": len(df),
+    },
+)
+
 for epoch in range(EPOCHS):
     for step, batch in enumerate(loader):
         batch = {k: v.to(DEVICE) for k, v in batch.items()}
@@ -134,6 +148,14 @@ for epoch in range(EPOCHS):
             "loss_lm_cf":   round(float(out_c.loss), 4),
             "loss_clp":     round(float(l_clp),      4),
         })
+        if wb_run is not None:
+            wb_run.log({
+                "train/loss_total":   float(loss),
+                "train/loss_lm_orig": float(out_o.loss),
+                "train/loss_lm_cf":   float(out_c.loss),
+                "train/loss_clp":     float(l_clp),
+                "train/epoch":        epoch + 1,
+            })
         if (step + 1) % 20 == 0:
             print(history[-1])
 
@@ -150,4 +172,15 @@ with open(os.path.join(METRICS_DIR, "train_debiased.json"), "w") as f:
         "lambda_clp": LAMBDA_CLP,
         "final_step": history[-1] if history else {}
     }, f, indent=2)
+
+# Persist the full loss curve so step 9 can plot it. Trainer-based step 3
+# writes trainer_state.json automatically; this custom loop does not, so
+# we emit the history explicitly.
+with open(os.path.join(METRICS_DIR, "train_history_debiased.json"), "w") as f:
+    json.dump(history, f, indent=2)
+if wb_run is not None:
+    wb_run.summary["train_seconds"] = elapsed
+    wb_run.summary["final_loss_total"] = history[-1]["loss_total"] if history else None
+    wb_run.summary["final_loss_clp"]   = history[-1]["loss_clp"]   if history else None
+wandb_finish(wb_run)
 print(f"[Step 4] Done. Saved to {save_path}  ({elapsed}s)")

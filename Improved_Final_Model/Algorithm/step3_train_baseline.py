@@ -19,7 +19,16 @@ from transformers import (AutoTokenizer, AutoModelForCausalLM,
                           DataCollatorForLanguageModeling)
 from peft import LoraConfig, get_peft_model
 
+from Algorithm._wandb_log import enabled as wandb_enabled, ensure_group
+
 print(f"[Step 3] Training BASELINE model with LoRA on original data...")
+
+# If W&B is configured, let HF Trainer auto-create a run inside the shared
+# pipeline group. report_to="none" keeps the pipeline silent otherwise.
+USE_WANDB = wandb_enabled()
+if USE_WANDB:
+    ensure_group()
+    os.environ["WANDB_NAME"] = "baseline_train"
 
 # Load data
 df = pd.read_csv(os.path.join(DATA_DIR, "bias_in_bios.csv")).dropna(subset=["text"])
@@ -57,7 +66,7 @@ args = TrainingArguments(
     gradient_accumulation_steps=GRAD_ACCUM,
     learning_rate=LR,
     logging_steps=10,
-    report_to="none",
+    report_to="wandb" if USE_WANDB else "none",
     save_strategy="no",
     remove_unused_columns=False,
 )

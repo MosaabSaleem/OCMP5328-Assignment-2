@@ -17,6 +17,14 @@ import sys
 import subprocess
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, ROOT)
+from Algorithm._wandb_log import ensure_group, enabled as wandb_enabled
+
+# Set the W&B run group once so every step's W&B run (baseline_train,
+# debiased_train, results_summary) is grouped together in the dashboard.
+if wandb_enabled():
+    group = ensure_group()
+    print(f"[run_all] W&B group: {group}")
 
 STEPS = [
     "Algorithm/step1_load_data.py",
