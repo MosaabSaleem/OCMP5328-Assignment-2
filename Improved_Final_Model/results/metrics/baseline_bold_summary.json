@@ -2,7 +2,8 @@
   "model": "baseline",
   "benchmark": "BOLD",
   "n": 500,
-  "avg_abs_gender_gap": 1.288,
-  "total_male_terms": 647,
-  "total_female_terms": 27
+  "avg_abs_gender_gap": 3.096,
+  "avg_net_gender_gap": 2.944,
+  "total_male_terms": 1531,
+  "total_female_terms": 59
 }

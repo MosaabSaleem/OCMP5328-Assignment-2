@@ -3,10 +3,10 @@
   "benchmark": "StereoSet (gender)",
   "n": 255,
   "bias_type": "gender",
-  "stereotype_preference_rate": 0.6275,
-  "stereotype_preference_rate_avg": 0.5961,
-  "score_gap_mean": 1.0735,
-  "score_gap_std": 3.7001,
-  "score_gap_avg_mean": 0.0528,
-  "score_gap_avg_std": 0.1818
+  "stereotype_preference_rate": 0.7098,
+  "stereotype_preference_rate_avg": 0.7098,
+  "score_gap_mean": 2.0858,
+  "score_gap_std": 4.7276,
+  "score_gap_avg_mean": 0.2151,
+  "score_gap_avg_std": 0.4737
 }

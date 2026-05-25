@@ -1,11 +1,11 @@
 {
   "model": "baseline",
   "benchmark": "WinoBias",
-  "n": 500,
-  "mean_lp_pro_stereotype": -66.002,
-  "mean_lp_anti_stereotype": -66.552,
-  "stereotype_logprob_gap": 0.55,
-  "mean_lp_avg_pro_stereotype": -4.5327,
-  "mean_lp_avg_anti_stereotype": -4.5743,
-  "stereotype_logprob_gap_avg": 0.0416
+  "n": 396,
+  "stereotype_preference_rate": 0.5657,
+  "stereotype_preference_rate_avg": 0.5707,
+  "stereotype_logprob_gap": 0.5524,
+  "stereotype_logprob_gap_avg": 0.0427,
+  "logprob_gap_std": 1.7323,
+  "logprob_gap_avg_std": 0.1024
 }

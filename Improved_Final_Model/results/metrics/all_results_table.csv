@@ -1,34 +1,35 @@
 model,benchmark,metric,value
-debiased,WinoBias,mean_lp_pro_stereotype,-66.362
-debiased,WinoBias,mean_lp_anti_stereotype,-66.759
-debiased,WinoBias,stereotype_logprob_gap,0.397
-debiased,WinoBias,mean_lp_avg_pro_stereotype,-4.5551
-debiased,WinoBias,mean_lp_avg_anti_stereotype,-4.5859
-debiased,WinoBias,stereotype_logprob_gap_avg,0.0309
+debiased,WinoBias,stereotype_preference_rate,0.5429
+debiased,WinoBias,stereotype_preference_rate_avg,0.548
+debiased,WinoBias,stereotype_logprob_gap,0.4141
+debiased,WinoBias,stereotype_logprob_gap_avg,0.0334
+debiased,WinoBias,logprob_gap_std,1.448
+debiased,WinoBias,logprob_gap_avg_std,0.0793
 baseline,CrowS-Pairs (gender),stereotype_preference_rate,0.6336
 baseline,CrowS-Pairs (gender),stereotype_preference_rate_avg,0.5916
 baseline,CrowS-Pairs (gender),logprob_gap_mean,0.8674
 baseline,CrowS-Pairs (gender),logprob_gap_std,4.1483
 baseline,CrowS-Pairs (gender),logprob_gap_avg_mean,0.0347
 baseline,CrowS-Pairs (gender),logprob_gap_avg_std,0.4486
-baseline,WinoBias,mean_lp_pro_stereotype,-66.002
-baseline,WinoBias,mean_lp_anti_stereotype,-66.552
-baseline,WinoBias,stereotype_logprob_gap,0.55
-baseline,WinoBias,mean_lp_avg_pro_stereotype,-4.5327
-baseline,WinoBias,mean_lp_avg_anti_stereotype,-4.5743
-baseline,WinoBias,stereotype_logprob_gap_avg,0.0416
+baseline,WinoBias,stereotype_preference_rate,0.5657
+baseline,WinoBias,stereotype_preference_rate_avg,0.5707
+baseline,WinoBias,stereotype_logprob_gap,0.5524
+baseline,WinoBias,stereotype_logprob_gap_avg,0.0427
+baseline,WinoBias,logprob_gap_std,1.7323
+baseline,WinoBias,logprob_gap_avg_std,0.1024
 baseline,Embedding cosine (CrowS-Pairs gender),mean_cosine_similarity,0.9858
 baseline,Embedding cosine (CrowS-Pairs gender),std_cosine_similarity,0.0182
 baseline,Embedding cosine (CrowS-Pairs gender),mean_cosine_distance,0.0142
-baseline,StereoSet (gender),stereotype_preference_rate,0.6275
-baseline,StereoSet (gender),stereotype_preference_rate_avg,0.5961
-baseline,StereoSet (gender),score_gap_mean,1.0735
-baseline,StereoSet (gender),score_gap_std,3.7001
-baseline,StereoSet (gender),score_gap_avg_mean,0.0528
-baseline,StereoSet (gender),score_gap_avg_std,0.1818
-baseline,BOLD,avg_abs_gender_gap,1.288
-baseline,BOLD,total_male_terms,647.0
-baseline,BOLD,total_female_terms,27.0
+baseline,StereoSet (gender),stereotype_preference_rate,0.7098
+baseline,StereoSet (gender),stereotype_preference_rate_avg,0.7098
+baseline,StereoSet (gender),score_gap_mean,2.0858
+baseline,StereoSet (gender),score_gap_std,4.7276
+baseline,StereoSet (gender),score_gap_avg_mean,0.2151
+baseline,StereoSet (gender),score_gap_avg_std,0.4737
+baseline,BOLD,avg_abs_gender_gap,3.096
+baseline,BOLD,avg_net_gender_gap,2.944
+baseline,BOLD,total_male_terms,1531.0
+baseline,BOLD,total_female_terms,59.0
 baseline,Utility,perplexity_wikitext2,29.3071
 baseline,Utility,mean_nll_loss,3.3778
 baseline,Utility,std_nll_loss,0.7677
@@ -41,12 +42,12 @@ debiased,Utility,std_nll_loss,0.7806
 debiased,Utility,mean_generation_seconds,2.537
 debiased,Utility,std_generation_seconds,0.006
 debiased,Utility,train_seconds,244.34
-debiased,StereoSet (gender),stereotype_preference_rate,0.5961
-debiased,StereoSet (gender),stereotype_preference_rate_avg,0.5608
-debiased,StereoSet (gender),score_gap_mean,0.9853
-debiased,StereoSet (gender),score_gap_std,3.6669
-debiased,StereoSet (gender),score_gap_avg_mean,0.0469
-debiased,StereoSet (gender),score_gap_avg_std,0.1774
+debiased,StereoSet (gender),stereotype_preference_rate,0.7098
+debiased,StereoSet (gender),stereotype_preference_rate_avg,0.698
+debiased,StereoSet (gender),score_gap_mean,1.9642
+debiased,StereoSet (gender),score_gap_std,4.6453
+debiased,StereoSet (gender),score_gap_avg_mean,0.1943
+debiased,StereoSet (gender),score_gap_avg_std,0.4522
 debiased,Embedding cosine (CrowS-Pairs gender),mean_cosine_similarity,0.9897
 debiased,Embedding cosine (CrowS-Pairs gender),std_cosine_similarity,0.015
 debiased,Embedding cosine (CrowS-Pairs gender),mean_cosine_distance,0.0103
@@ -56,6 +57,7 @@ debiased,CrowS-Pairs (gender),logprob_gap_mean,0.6684
 debiased,CrowS-Pairs (gender),logprob_gap_std,4.0551
 debiased,CrowS-Pairs (gender),logprob_gap_avg_mean,0.0196
 debiased,CrowS-Pairs (gender),logprob_gap_avg_std,0.4369
-debiased,BOLD,avg_abs_gender_gap,1.442
-debiased,BOLD,total_male_terms,725.0
-debiased,BOLD,total_female_terms,36.0
+debiased,BOLD,avg_abs_gender_gap,3.132
+debiased,BOLD,avg_net_gender_gap,2.952
+debiased,BOLD,total_male_terms,1551.0
+debiased,BOLD,total_female_terms,75.0
