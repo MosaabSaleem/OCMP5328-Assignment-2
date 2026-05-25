@@ -12,7 +12,7 @@ import sys, os, json, re
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import MODEL_DIR, METRICS_DIR, EVAL_SAMPLE_SIZE
 from Algorithm._model_helpers import load_model, seq_logprob_stats, generate
-from Algorithm._dataset_loaders import load_winobias_type1, load_bold_gender
+from Algorithm._dataset_loaders import load_winobias_type1_pairs, load_bold_gender
 
 import pandas as pd
 
@@ -27,33 +27,39 @@ def count_gender(text):
 
 
 def eval_winobias(mdl, tok, n):
-    print(f"  [WinoBias] evaluating {n} examples...")
-    examples = load_winobias_type1(n // 2)
+    print(f"  [WinoBias] evaluating up to {n} paired examples...")
+    examples = load_winobias_type1_pairs(n)
     rows = []
     for ex in examples:
-        sent = ex["sentence"]
-        lp = seq_logprob_stats(mdl, tok, sent)
+        pro = seq_logprob_stats(mdl, tok, ex["pro_sentence"])
+        anti = seq_logprob_stats(mdl, tok, ex["anti_sentence"])
+        gap = pro["sum"] - anti["sum"]
+        gap_avg = pro["avg"] - anti["avg"]
         rows.append({
-            "sentence": sent,
-            "type": ex["type"],
-            "lp": round(lp["sum"], 4),
-            "lp_avg": round(lp["avg"], 4),
-            "token_count": lp["token_count"],
+            "pair_id": ex["pair_id"],
+            "pro_sentence": ex["pro_sentence"],
+            "anti_sentence": ex["anti_sentence"],
+            "lp_pro": round(pro["sum"], 4),
+            "lp_anti": round(anti["sum"], 4),
+            "lp_pro_avg": round(pro["avg"], 4),
+            "lp_anti_avg": round(anti["avg"], 4),
+            "pro_tokens": pro["token_count"],
+            "anti_tokens": anti["token_count"],
+            "prefers_stereotype": int(gap > 0),
+            "prefers_stereotype_avg": int(gap_avg > 0),
+            "logprob_gap": round(gap, 4),
+            "logprob_gap_avg": round(gap_avg, 4),
         })
 
-    df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["sentence","type","lp","lp_avg","token_count"])
-    pro_lp  = df[df["type"]=="type1_pro"]["lp"].mean()  if len(df) else float("nan")
-    anti_lp = df[df["type"]=="type1_anti"]["lp"].mean() if len(df) else float("nan")
-    pro_lp_avg  = df[df["type"]=="type1_pro"]["lp_avg"].mean()  if len(df) else float("nan")
-    anti_lp_avg = df[df["type"]=="type1_anti"]["lp_avg"].mean() if len(df) else float("nan")
+    df = pd.DataFrame(rows)
     summary = {
         "n": len(df),
-        "mean_lp_pro_stereotype":   round(float(pro_lp),  4) if str(pro_lp)  != "nan" else None,
-        "mean_lp_anti_stereotype":  round(float(anti_lp), 4) if str(anti_lp) != "nan" else None,
-        "stereotype_logprob_gap":   round(float(pro_lp - anti_lp), 4) if (str(pro_lp) != "nan" and str(anti_lp) != "nan") else None,
-        "mean_lp_avg_pro_stereotype":   round(float(pro_lp_avg),  4) if str(pro_lp_avg)  != "nan" else None,
-        "mean_lp_avg_anti_stereotype":  round(float(anti_lp_avg), 4) if str(anti_lp_avg) != "nan" else None,
-        "stereotype_logprob_gap_avg":   round(float(pro_lp_avg - anti_lp_avg), 4) if (str(pro_lp_avg) != "nan" and str(anti_lp_avg) != "nan") else None,
+        "stereotype_preference_rate": round(float(df["prefers_stereotype"].mean()), 4) if len(df) else None,
+        "stereotype_preference_rate_avg": round(float(df["prefers_stereotype_avg"].mean()), 4) if len(df) else None,
+        "stereotype_logprob_gap": round(float(df["logprob_gap"].mean()), 4) if len(df) else None,
+        "stereotype_logprob_gap_avg": round(float(df["logprob_gap_avg"].mean()), 4) if len(df) else None,
+        "logprob_gap_std": round(float(df["logprob_gap"].std()), 4) if len(df) else None,
+        "logprob_gap_avg_std": round(float(df["logprob_gap_avg"].std()), 4) if len(df) else None,
     }
     return df, summary
 

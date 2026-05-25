@@ -112,6 +112,47 @@ def load_winobias_type1(n_per_side):
     return rows
 
 
+def load_winobias_type1_pairs(n_pairs):
+    """
+    WinoBias type-1 test set as aligned pro/anti sentence pairs.
+    Returns {pair_id, pro_sentence, anti_sentence} rows. Strips
+    [coreference] brackets.
+    """
+    base_candidates = [
+        "https://raw.githubusercontent.com/uclanlp/corefBias/master/WinoBias/wino/data",
+        "https://raw.githubusercontent.com/uclanlp/corefBias/main/WinoBias/wino/data",
+    ]
+    files = {
+        "pro":  ("pro_stereotyped_type1.txt.test",  "winobias_pro_type1.txt"),
+        "anti": ("anti_stereotyped_type1.txt.test", "winobias_anti_type1.txt"),
+    }
+    loaded = {}
+    for side, (remote, local) in files.items():
+        urls = [f"{b}/{remote}" for b in base_candidates]
+        path = _try_download(urls, os.path.join(CACHE_DIR, local))
+        with open(path) as f:
+            lines = [ln.strip() for ln in f if ln.strip()]
+        cleaned = []
+        for ln in lines:
+            ln = re.sub(r"^\d+\s+", "", ln)
+            ln = ln.replace("[", "").replace("]", "").strip()
+            if ln:
+                cleaned.append(ln)
+        loaded[side] = cleaned
+
+    total = min(len(loaded["pro"]), len(loaded["anti"]))
+    if n_pairs and n_pairs < total:
+        total = n_pairs
+    return [
+        {
+            "pair_id": i,
+            "pro_sentence": loaded["pro"][i],
+            "anti_sentence": loaded["anti"][i],
+        }
+        for i in range(total)
+    ]
+
+
 def load_bold_gender(n):
     """
     BOLD gender-prompt subset. Returns a list of {prompt, domain} dicts.
