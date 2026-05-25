@@ -8,3 +8,5 @@ __pycache__
 *.md
 data/
 output/
+Improved_Final_Model/Algorithm/__pycache__/
+Improved_Final_Model/Input_data/cache
