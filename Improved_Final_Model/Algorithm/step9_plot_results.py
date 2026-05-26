@@ -20,7 +20,8 @@ import seaborn as sns
 import re
 
 sns.set_theme(style="whitegrid", palette="Set2")
-COLORS = {"base_gemma": "#c0a37b", "baseline": "#5591c7", "debiased": "#6daa45"}
+COLORS = {"base_gemma": "#c0a37b", "baseline": "#5591c7",
+          "cda_only": "#e08850", "debiased": "#6daa45"}
 EXPECTED_MODELS = set(MODELS_TO_EVAL)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 

@@ -42,11 +42,13 @@ FIGURES_DIR = os.path.join(RESULTS_DIR, "figures")
 # ── Models that every evaluation step iterates over ────────────────────────────
 # base_gemma  : untouched Gemma-3-1b-pt, no fine-tuning at all
 # baseline    : LoRA on raw Bias-in-Bios (control for the effect of fine-tuning)
+# cda_only    : LoRA on CDA-augmented Bias-in-Bios (isolates CDA from CLP)
 # debiased    : LoRA on CDA pairs + CLP (proposed method)
-MODELS_TO_EVAL = ["base_gemma", "baseline", "debiased"]
+MODELS_TO_EVAL = ["base_gemma", "baseline", "cda_only", "debiased"]
 
 for _d in [DATA_DIR, RESULTS_DIR, MODEL_DIR, METRICS_DIR, FIGURES_DIR,
            os.path.join(MODEL_DIR, "base_gemma"),
            os.path.join(MODEL_DIR, "baseline"),
+           os.path.join(MODEL_DIR, "cda_only"),
            os.path.join(MODEL_DIR, "debiased")]:
     os.makedirs(_d, exist_ok=True)
