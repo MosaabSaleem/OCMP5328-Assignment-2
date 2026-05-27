@@ -41,6 +41,17 @@ MODEL_DIR   = os.path.join(RESULTS_DIR, "models")
 METRICS_DIR = os.path.join(RESULTS_DIR, "metrics")
 FIGURES_DIR = os.path.join(RESULTS_DIR, "figures")
 
+# ── Bias-in-Bios profession label mapping (De-Arteaga et al., 2019) ───────────
+PROFESSION_LABELS = {
+    0: "accountant", 1: "architect", 2: "attorney", 3: "chiropractor",
+    4: "comedian", 5: "composer", 6: "dentist", 7: "dietitian",
+    8: "dj", 9: "filmmaker", 10: "interior_designer", 11: "journalist",
+    12: "model", 13: "nurse", 14: "painter", 15: "paralegal",
+    16: "pastor", 17: "personal_trainer", 18: "photographer", 19: "physician",
+    20: "poet", 21: "professor", 22: "psychologist", 23: "rapper",
+    24: "software_engineer", 25: "surgeon", 26: "teacher", 27: "yoga_teacher",
+}
+
 # ── Models that every evaluation step iterates over ────────────────────────────
 # base_gemma  : untouched Gemma-3-1b-pt, no fine-tuning at all
 # baseline    : LoRA on raw Bias-in-Bios (control for the effect of fine-tuning)

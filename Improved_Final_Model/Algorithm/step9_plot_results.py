@@ -13,11 +13,14 @@ from Algorithm.config import METRICS_DIR, FIGURES_DIR, MODELS_TO_EVAL
 from Algorithm._wandb_log import start as wandb_start, finish as wandb_finish
 
 import pandas as pd
+import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
 import re
+
+from Algorithm.config import PROFESSION_LABELS, DATA_DIR
 
 sns.set_theme(style="whitegrid", palette="Set2")
 COLORS = {"base_gemma": "#c0a37b", "baseline": "#5591c7",
@@ -272,6 +275,70 @@ if losses:
     print(f"  Saved: {out}")
 
 
+# ── Plot 5: Dataset — occupation distribution & gender imbalance ──────────────
+bib_path = os.path.join(DATA_DIR, "bias_in_bios.csv")
+if os.path.isfile(bib_path):
+    df_bib = pd.read_csv(bib_path)
+    if "profession" in df_bib.columns and "gender" in df_bib.columns:
+        # 5a: Occupation counts (sorted)
+        occ_counts = df_bib["profession"].value_counts().sort_values(ascending=True)
+        fig, ax = plt.subplots(figsize=(8, 9))
+        colors = ["#e08850" if c == "professor" else "#3182bd" for c in occ_counts.index]
+        ax.barh(occ_counts.index, occ_counts.values, color=colors)
+        ax.set_xlabel("Count (training set)")
+        ax.set_title("Bias in Bios — Occupation Distribution\n(orange = professor, largest class)",
+                     fontsize=11, fontweight="bold")
+        plt.tight_layout()
+        out = os.path.join(FIGURES_DIR, "dataset_occupation_dist.png")
+        plt.savefig(out, dpi=220); plt.close()
+        print(f"  Saved: {out}")
+
+        # 5b: Gender imbalance per occupation (% female)
+        df_bib["is_female"] = (df_bib["gender"] == "female").astype(int)
+        imb = (df_bib.groupby("profession")["is_female"].mean() * 100).sort_values()
+        fig, ax = plt.subplots(figsize=(8, 9))
+        bar_colors = ["#984ea3" if v > 50 else "#4daf4a" for v in imb.values]
+        bars = ax.barh(imb.index, imb.values, color=bar_colors)
+        ax.axvline(50, color="black", linewidth=1.2, linestyle="--", label="50% (neutral)")
+        ax.set_xlabel("% Female in training set")
+        ax.set_title("Gender Imbalance per Occupation\n(green = male-skewed, purple = female-skewed)",
+                     fontsize=11, fontweight="bold")
+        ax.legend()
+        plt.tight_layout()
+        out = os.path.join(FIGURES_DIR, "dataset_gender_imbalance.png")
+        plt.savefig(out, dpi=220); plt.close()
+        print(f"  Saved: {out}")
+
+
+# ── Plot 6: In-domain gender bias (step4b) ────────────────────────────────────
+indomain_path = os.path.join(METRICS_DIR, "indomain_gender_bias.json")
+if os.path.isfile(indomain_path):
+    with open(indomain_path) as f:
+        indomain = json.load(f)
+    models_present = [m for m in MODELS_TO_EVAL if m in indomain]
+    if models_present:
+        professions = sorted({p for m in models_present for p in indomain[m]})
+        x = np.arange(len(professions))
+        width = 0.8 / len(models_present)
+        fig, ax = plt.subplots(figsize=(14, 6))
+        for i, m in enumerate(models_present):
+            vals = [indomain[m].get(p, {}).get("male_bias", float("nan")) for p in professions]
+            offset = (i - (len(models_present) - 1) / 2) * width
+            ax.bar(x + offset, vals, width, label=m, color=COLORS.get(m, "#999"), alpha=0.85)
+        ax.axhline(0.5, color="black", linewidth=1.2, linestyle="--", label="0.5 (neutral)")
+        ax.set_xticks(x)
+        ax.set_xticklabels(professions, rotation=45, ha="right", fontsize=8)
+        ax.set_ylabel("P(he) / (P(he) + P(she))")
+        ax.set_title("In-domain Gender Bias per Profession\n"
+                     "(0.5 = neutral, >0.5 = male-skewed, <0.5 = female-skewed)",
+                     fontsize=11, fontweight="bold")
+        ax.legend(title="Model")
+        plt.tight_layout()
+        out = os.path.join(FIGURES_DIR, "indomain_gender_bias.png")
+        plt.savefig(out, dpi=220); plt.close()
+        print(f"  Saved: {out}")
+
+
 # ── Print summary table ────────────────────────────────────────────────────────
 if len(df_all):
     pivot = df_all.pivot_table(index="metric", columns="model",
@@ -300,7 +367,9 @@ if wb_run is not None:
     # The aggregated table + each figure produced by this step.
     wb_run.log({"all_results_table": __import__("wandb").Table(dataframe=df_all)})
     for fig_name in ["comparison_bias_metrics.png", "comparison_utility.png",
-                     "bold_gender_gap.png", "training_loss.png"]:
+                     "bold_gender_gap.png", "training_loss.png",
+                     "dataset_occupation_dist.png", "dataset_gender_imbalance.png",
+                     "indomain_gender_bias.png"]:
         fig_path = os.path.join(FIGURES_DIR, fig_name)
         if os.path.isfile(fig_path):
             wb_run.log({f"figures/{os.path.splitext(fig_name)[0]}":

@@ -26,9 +26,15 @@ text_col   = pick_col(["hard_text", "text", "bio", "biography"]) or cols[0]
 label_col  = pick_col(["profession", "title", "label", "p"])
 gender_col = pick_col(["gender", "g"])
 
+from Algorithm.config import PROFESSION_LABELS
+GENDER_LABELS = {0: "male", 1: "female"}
+
 data = {"text": [str(x) for x in ds[text_col]]}
-if label_col:  data["label"]  = ds[label_col]
-if gender_col: data["gender"] = ds[gender_col]
+if label_col:
+    data["label"]      = ds[label_col]
+    data["profession"] = [PROFESSION_LABELS.get(p, str(p)) for p in ds[label_col]]
+if gender_col:
+    data["gender"] = [GENDER_LABELS.get(g, str(g)) for g in ds[gender_col]]
 
 df = pd.DataFrame(data).dropna(subset=["text"])
 
