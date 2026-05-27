@@ -18,7 +18,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
-import re
 
 from Algorithm.config import PROFESSION_LABELS, DATA_DIR
 
@@ -51,14 +50,25 @@ def summary_csv_path(summary):
 
 def validate_summary_files(summaries):
     """
-    Fail fast if Step 9 is about to mix partial or stale metrics.
-    Benchmarks should have both baseline/debiased summaries, matching n values,
-    and matching detail CSV schemas when detail CSVs exist.
+    Sanity-check the metrics directory before plotting.
+
+    Hard failures (these usually mean an eval crashed mid-run or a script was
+    edited without rerunning the eval; plotting on top of them produces
+    misleading figures):
+      * a summary file is older than the script that should have produced it
+      * a summary's detail CSV is missing or has a different row count than `n`
+      * detail CSVs for the same benchmark have different schemas across models
+      * per-model `n` disagrees within a benchmark
+
+    Soft warnings (we still plot what we have; this is the normal mode while
+    iterating, e.g. when a single training arm has not finished yet):
+      * a benchmark is missing a summary for one or more EXPECTED_MODELS
     """
     if not summaries:
         raise RuntimeError(f"No *_summary.json files found in {METRICS_DIR}")
 
-    errors = []
+    errors = []   # hard-fail conditions
+    warnings = [] # soft conditions; report and continue
     by_benchmark = {}
     for obj in summaries:
         bench = obj.get("benchmark", "")
@@ -92,11 +102,11 @@ def validate_summary_files(summaries):
     for bench, models in sorted(by_benchmark.items()):
         missing = EXPECTED_MODELS - set(models)
         if missing:
-            errors.append(f"{bench}: missing summaries for {', '.join(sorted(missing))}")
-            continue
+            warnings.append(f"{bench}: missing summaries for {', '.join(sorted(missing))}")
 
-        if all("n" in models[m] for m in EXPECTED_MODELS):
-            ns = {m: models[m]["n"] for m in EXPECTED_MODELS}
+        present = [m for m in EXPECTED_MODELS if m in models]
+        if present and all("n" in models[m] for m in present):
+            ns = {m: models[m]["n"] for m in present}
             if len(set(ns.values())) > 1:
                 errors.append(f"{bench}: per-model n disagrees: {ns}")
 
@@ -107,8 +117,12 @@ def validate_summary_files(summaries):
             csv_path = summary_csv_path(obj)
             if os.path.isfile(csv_path):
                 csv_columns[model] = list(pd.read_csv(csv_path, nrows=0).columns)
-        if set(csv_columns) == EXPECTED_MODELS and len({tuple(v) for v in csv_columns.values()}) > 1:
+        if len(csv_columns) >= 2 and len({tuple(v) for v in csv_columns.values()}) > 1:
             errors.append(f"{bench}: detail CSV columns disagree across models")
+
+    if warnings:
+        msg = "\n".join(f"  - {w}" for w in warnings)
+        print(f"[Step 9] WARNING — partial metrics, plotting what is available:\n{msg}")
 
     if errors:
         msg = "\n".join(f"  - {e}" for e in errors)
@@ -349,9 +363,24 @@ if len(df_all):
 print(f"\n[Step 9] Done. Figures saved to: {FIGURES_DIR}")
 
 
-# ── Optional: log everything to W&B as one results-summary run ────────────────
-def _slug(s):
-    return re.sub(r"[^a-z0-9]+", "_", str(s).lower()).strip("_") or "v"
+# ── Log to W&B as one results-summary run ─────────────────────────────────────
+# Dashboard shape:
+#   * all_results: long-form Table (model, benchmark, metric, value)
+#   * comparison:  pivoted Table — rows are (benchmark, metric), cols are models,
+#                  with explicit debiased-vs-baseline delta columns so a single
+#                  panel shows whether each metric moved in the right direction.
+#   * summary:     a small dict of headline metrics surfaced as run summary
+#                  columns in the project view.
+#   * figures/*:   one Image panel per produced PNG.
+HEADLINE_METRICS = [
+    ("CrowS-Pairs (gender)",                  "stereotype_preference_rate"),
+    ("StereoSet (gender)",                    "stereotype_preference_rate"),
+    ("StereoSet (gender)",                    "icat_score"),
+    ("WinoBias",                              "stereotype_preference_rate"),
+    ("BOLD",                                  "avg_abs_gender_gap"),
+    ("Embedding cosine (CrowS-Pairs gender)", "mean_cosine_similarity"),
+    ("Utility",                               "perplexity_wikitext2"),
+]
 
 wb_run = wandb_start(
     job_type="results",
@@ -359,21 +388,47 @@ wb_run = wandb_start(
     config={"models": MODELS_TO_EVAL, "n_metric_rows": len(df_all)},
 )
 if wb_run is not None:
-    # Log per-metric scalars under a stable namespace so the dashboard can
-    # surface them as side-by-side panels across models.
-    for _, row in df_all.iterrows():
-        key = f"final/{_slug(row['benchmark'])}/{_slug(row['metric'])}/{_slug(row['model'])}"
-        wb_run.log({key: float(row["value"])})
-    # The aggregated table + each figure produced by this step.
-    wb_run.log({"all_results_table": __import__("wandb").Table(dataframe=df_all)})
+    import wandb  # local import keeps this branch lazy when W&B is disabled
+
+    # 1) Long-form table — every (model, benchmark, metric) row.
+    payload = {"all_results": wandb.Table(dataframe=df_all)}
+
+    # 2) Pivoted comparison table — one row per (benchmark, metric), one column
+    #    per model, plus deltas vs baseline and vs base_gemma for at-a-glance reads.
+    if len(df_all):
+        pivot = df_all.pivot_table(
+            index=["benchmark", "metric"],
+            columns="model",
+            values="value",
+            aggfunc="first",
+        ).reset_index()
+        pivot.columns.name = None
+        for m in MODELS_TO_EVAL:
+            if m not in pivot.columns:
+                pivot[m] = None
+        if "baseline" in pivot and "debiased" in pivot:
+            pivot["delta_debiased_minus_baseline"] = pivot["debiased"] - pivot["baseline"]
+        if "base_gemma" in pivot and "debiased" in pivot:
+            pivot["delta_debiased_minus_base_gemma"] = pivot["debiased"] - pivot["base_gemma"]
+        payload["comparison"] = wandb.Table(dataframe=pivot)
+
+    # 3) Figures.
     for fig_name in ["comparison_bias_metrics.png", "comparison_utility.png",
                      "bold_gender_gap.png", "training_loss.png",
                      "dataset_occupation_dist.png", "dataset_gender_imbalance.png",
                      "indomain_gender_bias.png"]:
         fig_path = os.path.join(FIGURES_DIR, fig_name)
         if os.path.isfile(fig_path):
-            wb_run.log({f"figures/{os.path.splitext(fig_name)[0]}":
-                        __import__("wandb").Image(fig_path)})
-    wb_run.summary["n_metric_rows"] = len(df_all)
+            payload[f"figures/{os.path.splitext(fig_name)[0]}"] = wandb.Image(fig_path)
+
+    wb_run.log(payload)
+
+    # 4) Headline metrics → run summary. Each scalar shows up as a single
+    #    column in the W&B project table so models can be compared side by side.
+    for bench, metric in HEADLINE_METRICS:
+        sub = df_all[(df_all["benchmark"] == bench) & (df_all["metric"] == metric)]
+        for _, row in sub.iterrows():
+            wb_run.summary[f"{metric}/{row['model']}"] = float(row["value"])
+    wb_run.summary["n_metric_rows"]   = len(df_all)
     wb_run.summary["models_evaluated"] = MODELS_TO_EVAL
 wandb_finish(wb_run)

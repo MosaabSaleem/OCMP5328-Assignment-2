@@ -12,7 +12,6 @@ from Algorithm.config import (MODEL_NAME, DATA_DIR, MODEL_DIR, METRICS_DIR,
                                WARMUP_RATIO, LR_SCHEDULER,
                                LORA_R, LORA_ALPHA, LORA_DROPOUT)
 
-import torch
 import pandas as pd
 from datasets import Dataset
 from transformers import (AutoTokenizer, AutoModelForCausalLM,
@@ -20,16 +19,11 @@ from transformers import (AutoTokenizer, AutoModelForCausalLM,
                           DataCollatorForLanguageModeling)
 from peft import LoraConfig, get_peft_model
 
-from Algorithm._wandb_log import enabled as wandb_enabled, ensure_group
+from Algorithm._wandb_log import (start as wandb_start,
+                                   finish as wandb_finish,
+                                   log_lora_artifact)
 
 print(f"[Step 3] Training BASELINE model with LoRA on original data...")
-
-# If W&B is configured, let HF Trainer auto-create a run inside the shared
-# pipeline group. report_to="none" keeps the pipeline silent otherwise.
-USE_WANDB = wandb_enabled()
-if USE_WANDB:
-    ensure_group()
-    os.environ["WANDB_NAME"] = "baseline_train"
 
 # Load data
 df = pd.read_csv(os.path.join(DATA_DIR, "bias_in_bios.csv")).dropna(subset=["text"])
@@ -63,7 +57,25 @@ def tokenize(batch):
     return enc
 ds = ds.map(tokenize, batched=True, remove_columns=["text"])
 
-# Train
+# Start the W&B run before Trainer init so Trainer's report_to="wandb"
+# reuses the active run instead of creating a second, anonymous one.
+wb_run = wandb_start(
+    job_type="train",
+    name="baseline_train",
+    config={
+        "model": MODEL_NAME, "method": "baseline_lora",
+        "epochs": EPOCHS, "batch_size": BATCH_SIZE,
+        "grad_accum": GRAD_ACCUM, "lr": LR,
+        "max_length": MAX_LENGTH, "warmup_ratio": WARMUP_RATIO,
+        "lr_scheduler": LR_SCHEDULER,
+        "lora_r": LORA_R, "lora_alpha": LORA_ALPHA,
+        "train_rows": len(df),
+    },
+)
+
+# Train — per-epoch checkpoints (save_total_limit=1) act as crash insurance:
+# if the next epoch dies we can resume; otherwise the final save_pretrained()
+# below leaves the canonical adapter at MODEL_DIR/baseline.
 args = TrainingArguments(
     output_dir=os.path.join(MODEL_DIR, "baseline"),
     num_train_epochs=EPOCHS,
@@ -73,8 +85,9 @@ args = TrainingArguments(
     lr_scheduler_type=LR_SCHEDULER,
     warmup_ratio=WARMUP_RATIO,
     logging_steps=10,
-    report_to="wandb" if USE_WANDB else "none",
-    save_strategy="no",
+    report_to="wandb" if wb_run is not None else "none",
+    save_strategy="epoch",
+    save_total_limit=1,
     remove_unused_columns=False,
 )
 t0 = time.time()
@@ -90,4 +103,16 @@ tok.save_pretrained(save_path)
 with open(os.path.join(METRICS_DIR, "train_baseline.json"), "w") as f:
     json.dump({"model": "baseline", "train_seconds": elapsed,
                "train_rows": len(df), "epochs": EPOCHS}, f, indent=2)
+
+if wb_run is not None:
+    wb_run.summary["train_seconds"] = elapsed
+    wb_run.summary["train_rows"]    = len(df)
+log_lora_artifact(
+    wb_run, name="baseline_lora", save_path=save_path,
+    metadata={"base_model": MODEL_NAME, "method": "baseline_lora",
+              "train_seconds": elapsed, "train_rows": len(df),
+              "epochs": EPOCHS, "lr": LR, "max_length": MAX_LENGTH,
+              "lora_r": LORA_R, "lora_alpha": LORA_ALPHA},
+)
+wandb_finish(wb_run)
 print(f"[Step 3] Done. Saved to {save_path}  ({elapsed}s)")

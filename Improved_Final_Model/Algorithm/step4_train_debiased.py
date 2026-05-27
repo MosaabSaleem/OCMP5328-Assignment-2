@@ -33,7 +33,9 @@ from torch.optim import AdamW
 from transformers import AutoTokenizer, AutoModelForCausalLM, get_cosine_schedule_with_warmup
 from peft import LoraConfig, get_peft_model
 
-from Algorithm._wandb_log import start as wandb_start, finish as wandb_finish
+from Algorithm._wandb_log import (start as wandb_start,
+                                   finish as wandb_finish,
+                                   log_lora_artifact)
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -66,18 +68,25 @@ class CDAPairDataset(Dataset):
 
 def compute_clp_loss(logits_o, logits_c, mask):
     """
-    Symmetric KL divergence between token distributions of the
-    original and counterfactual sentence pair, averaged over
-    non-padding positions present in BOTH sequences.
-    L_CLP = 0.5 * ( KL(p_o || p_c) + KL(p_c || p_o) )
-    Caller must pass an intersection mask (o_mask & c_mask) so we
-    don't compare a real position against a padded one when the
-    counterfactual tokenizes to a different length (e.g. man↔woman).
+    Symmetric KL divergence between next-token distributions of the
+    original and counterfactual sentence pair, averaged over positions
+    where both sequences have real (non-pad) tokens.
+
+        L_CLP = 0.5 * ( KL(p_o || p_c) + KL(p_c || p_o) )
+
+    Uses log_softmax directly for numerical stability — softmax followed by
+    clamp(1e-9).log() distorts ~75% of Gemma's 262k-vocab positions per row
+    by up to ~27 log units, which corrupts the gradient.
+
+    Caller is responsible for shifting/masking so that:
+      * logits_o[t] and logits_c[t] both predict the same target position,
+      * mask[t] = 1 only where that target position is a real token in both.
     """
-    p_o = F.softmax(logits_o, dim=-1).clamp(min=1e-9)
-    p_c = F.softmax(logits_c, dim=-1).clamp(min=1e-9)
-    kl_oc = (p_o * (p_o.log() - p_c.log())).sum(dim=-1)
-    kl_co = (p_c * (p_c.log() - p_o.log())).sum(dim=-1)
+    lp_o = F.log_softmax(logits_o, dim=-1)
+    lp_c = F.log_softmax(logits_c, dim=-1)
+    p_o, p_c = lp_o.exp(), lp_c.exp()
+    kl_oc = (p_o * (lp_o - lp_c)).sum(dim=-1)
+    kl_co = (p_c * (lp_c - lp_o)).sum(dim=-1)
     skl   = 0.5 * (kl_oc + kl_co) * mask.float()
     return skl.sum() / mask.float().sum().clamp_min(1.0)
 
@@ -112,16 +121,20 @@ t0      = time.time()
 opt.zero_grad()
 
 wb_run = wandb_start(
-    job_type="train_debiased",
+    job_type="train",
     name="debiased_train",
     config={
-        "model": MODEL_NAME, "epochs": EPOCHS,
-        "batch_size": BATCH_SIZE, "grad_accum": GRAD_ACCUM,
-        "lr": LR, "max_length": MAX_LENGTH, "lambda_clp": LAMBDA_CLP,
+        "model": MODEL_NAME, "method": "debiased_lora_cda_clp",
+        "epochs": EPOCHS, "batch_size": BATCH_SIZE,
+        "grad_accum": GRAD_ACCUM, "lr": LR,
+        "max_length": MAX_LENGTH, "warmup_ratio": WARMUP_RATIO,
+        "lr_scheduler": LR_SCHEDULER, "lambda_clp": LAMBDA_CLP,
         "lora_r": LORA_R, "lora_alpha": LORA_ALPHA,
         "train_rows": len(df),
     },
 )
+
+save_path = os.path.join(MODEL_DIR, "debiased")
 
 for epoch in range(EPOCHS):
     for step, batch in enumerate(loader):
@@ -135,8 +148,13 @@ for epoch in range(EPOCHS):
                     labels=o_labels)
         out_c = mdl(input_ids=batch["c_ids"], attention_mask=batch["c_mask"],
                     labels=c_labels)
-        clp_mask = batch["o_mask"] * batch["c_mask"]
-        l_clp = compute_clp_loss(out_o.logits, out_c.logits, clp_mask)
+        # logits[t] predicts token at position t+1, so shift logits left by
+        # one and the mask right by one. Mask = 1 only where the target
+        # position has a real token in BOTH sequences.
+        shift_o_logits = out_o.logits[:, :-1, :]
+        shift_c_logits = out_c.logits[:, :-1, :]
+        shift_mask     = batch["o_mask"][:, 1:] * batch["c_mask"][:, 1:]
+        l_clp = compute_clp_loss(shift_o_logits, shift_c_logits, shift_mask)
         loss  = out_o.loss + out_c.loss + LAMBDA_CLP * l_clp
         scaled_loss = loss / GRAD_ACCUM
 
@@ -164,8 +182,14 @@ for epoch in range(EPOCHS):
         if (step + 1) % 20 == 0:
             print(history[-1])
 
-elapsed   = round(time.time() - t0, 2)
-save_path = os.path.join(MODEL_DIR, "debiased")
+    # End-of-epoch checkpoint — the Trainer-based steps get this via
+    # save_strategy="epoch"; this custom loop has to do it explicitly.
+    # Overwrites the previous epoch's adapter so disk stays at ~6 MB.
+    mdl.save_pretrained(save_path)
+    tok.save_pretrained(save_path)
+    print(f"[Step 4] Epoch {epoch + 1}/{EPOCHS} checkpoint saved to {save_path}")
+
+elapsed = round(time.time() - t0, 2)
 mdl.save_pretrained(save_path)
 tok.save_pretrained(save_path)
 
@@ -187,5 +211,15 @@ if wb_run is not None:
     wb_run.summary["train_seconds"] = elapsed
     wb_run.summary["final_loss_total"] = history[-1]["loss_total"] if history else None
     wb_run.summary["final_loss_clp"]   = history[-1]["loss_clp"]   if history else None
+log_lora_artifact(
+    wb_run, name="debiased_lora", save_path=save_path,
+    metadata={"base_model": MODEL_NAME, "method": "debiased_lora_cda_clp",
+              "train_seconds": elapsed, "train_rows": len(df),
+              "epochs": EPOCHS, "lr": LR, "max_length": MAX_LENGTH,
+              "lambda_clp": LAMBDA_CLP,
+              "lora_r": LORA_R, "lora_alpha": LORA_ALPHA,
+              "final_loss_total": history[-1]["loss_total"] if history else None,
+              "final_loss_clp":   history[-1]["loss_clp"]   if history else None},
+)
 wandb_finish(wb_run)
 print(f"[Step 4] Done. Saved to {save_path}  ({elapsed}s)")

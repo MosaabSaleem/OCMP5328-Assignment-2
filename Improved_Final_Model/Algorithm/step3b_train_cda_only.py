@@ -22,14 +22,11 @@ from transformers import (AutoTokenizer, AutoModelForCausalLM,
                           DataCollatorForLanguageModeling)
 from peft import LoraConfig, get_peft_model
 
-from Algorithm._wandb_log import enabled as wandb_enabled, ensure_group
+from Algorithm._wandb_log import (start as wandb_start,
+                                   finish as wandb_finish,
+                                   log_lora_artifact)
 
 print(f"[Step 3b] Training CDA-ONLY model with LoRA on CDA-augmented data...")
-
-USE_WANDB = wandb_enabled()
-if USE_WANDB:
-    ensure_group()
-    os.environ["WANDB_NAME"] = "cda_only_train"
 
 # Build the CDA-augmented training set: original + counterfactual rows
 # stacked into a single 'text' column so the existing Trainer pipeline can
@@ -66,6 +63,21 @@ def tokenize(batch):
     return enc
 ds = ds.map(tokenize, batched=True, remove_columns=["text"])
 
+wb_run = wandb_start(
+    job_type="train",
+    name="cda_only_train",
+    config={
+        "model": MODEL_NAME, "method": "cda_only_lora",
+        "epochs": EPOCHS, "batch_size": BATCH_SIZE,
+        "grad_accum": GRAD_ACCUM, "lr": LR,
+        "max_length": MAX_LENGTH, "warmup_ratio": WARMUP_RATIO,
+        "lr_scheduler": LR_SCHEDULER,
+        "lora_r": LORA_R, "lora_alpha": LORA_ALPHA,
+        "train_rows": len(texts),
+        "n_originals": len(df), "n_counterfactuals": len(df),
+    },
+)
+
 args = TrainingArguments(
     output_dir=os.path.join(MODEL_DIR, "cda_only"),
     num_train_epochs=EPOCHS,
@@ -75,8 +87,9 @@ args = TrainingArguments(
     lr_scheduler_type=LR_SCHEDULER,
     warmup_ratio=WARMUP_RATIO,
     logging_steps=10,
-    report_to="wandb" if USE_WANDB else "none",
-    save_strategy="no",
+    report_to="wandb" if wb_run is not None else "none",
+    save_strategy="epoch",
+    save_total_limit=1,
     remove_unused_columns=False,
 )
 t0 = time.time()
@@ -91,4 +104,16 @@ tok.save_pretrained(save_path)
 with open(os.path.join(METRICS_DIR, "train_cda_only.json"), "w") as f:
     json.dump({"model": "cda_only", "train_seconds": elapsed,
                "train_rows": len(texts), "epochs": EPOCHS}, f, indent=2)
+
+if wb_run is not None:
+    wb_run.summary["train_seconds"] = elapsed
+    wb_run.summary["train_rows"]    = len(texts)
+log_lora_artifact(
+    wb_run, name="cda_only_lora", save_path=save_path,
+    metadata={"base_model": MODEL_NAME, "method": "cda_only_lora",
+              "train_seconds": elapsed, "train_rows": len(texts),
+              "epochs": EPOCHS, "lr": LR, "max_length": MAX_LENGTH,
+              "lora_r": LORA_R, "lora_alpha": LORA_ALPHA},
+)
+wandb_finish(wb_run)
 print(f"[Step 3b] Done. Saved to {save_path}  ({elapsed}s)")

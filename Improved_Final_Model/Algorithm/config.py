@@ -9,7 +9,7 @@ MODEL_NAME   = os.environ.get("MODEL_NAME",   "google/gemma-3-1b-pt")
 
 # ── Dataset sizes (lower for CPU / smoke tests) ────────────────────────────────
 TRAIN_SAMPLE_SIZE = int(os.environ.get(
-    "TRAIN_SAMPLE_SIZE", os.environ.get("SAMPLE_SIZE", "1000")
+    "TRAIN_SAMPLE_SIZE", os.environ.get("SAMPLE_SIZE", "5000")
 ))  # Bias-in-Bios training rows
 EVAL_SAMPLE_SIZE = int(os.environ.get(
     "EVAL_SAMPLE_SIZE", os.environ.get("EVAL_SIZE", "500")
