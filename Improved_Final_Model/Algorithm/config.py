@@ -21,9 +21,11 @@ SEED         = int(os.environ.get("SEED",         "42"))
 # ── Training hyperparameters ───────────────────────────────────────────────────
 EPOCHS       = int(os.environ.get("EPOCHS",       "2"))
 BATCH_SIZE   = int(os.environ.get("BATCH_SIZE",   "1"))
-GRAD_ACCUM   = int(os.environ.get("GRAD_ACCUM",   "2"))
+GRAD_ACCUM   = int(os.environ.get("GRAD_ACCUM",   "8"))
 LR           = float(os.environ.get("LR",         "2e-4"))
-MAX_LENGTH   = int(os.environ.get("MAX_LENGTH",   "128"))
+MAX_LENGTH   = int(os.environ.get("MAX_LENGTH",   "256"))
+WARMUP_RATIO = float(os.environ.get("WARMUP_RATIO", "0.1"))
+LR_SCHEDULER = os.environ.get("LR_SCHEDULER",    "cosine")
 LAMBDA_CLP   = float(os.environ.get("LAMBDA_CLP", "3.0"))  # weight for CLP loss
 
 # ── LoRA settings ──────────────────────────────────────────────────────────────

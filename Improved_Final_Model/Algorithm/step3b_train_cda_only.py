@@ -12,6 +12,7 @@ import sys, os, time, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import (MODEL_NAME, DATA_DIR, MODEL_DIR, METRICS_DIR,
                                EPOCHS, BATCH_SIZE, GRAD_ACCUM, LR, MAX_LENGTH,
+                               WARMUP_RATIO, LR_SCHEDULER,
                                LORA_R, LORA_ALPHA, LORA_DROPOUT)
 
 import pandas as pd
@@ -57,7 +58,11 @@ ds = Dataset.from_dict({"text": texts})
 def tokenize(batch):
     enc = tok(batch["text"], truncation=True, padding="max_length",
               max_length=MAX_LENGTH)
-    enc["labels"] = enc["input_ids"].copy()
+    enc["labels"] = [
+        [tok_id if mask == 1 else -100
+         for tok_id, mask in zip(ids, attn)]
+        for ids, attn in zip(enc["input_ids"], enc["attention_mask"])
+    ]
     return enc
 ds = ds.map(tokenize, batched=True, remove_columns=["text"])
 
@@ -67,6 +72,8 @@ args = TrainingArguments(
     per_device_train_batch_size=BATCH_SIZE,
     gradient_accumulation_steps=GRAD_ACCUM,
     learning_rate=LR,
+    lr_scheduler_type=LR_SCHEDULER,
+    warmup_ratio=WARMUP_RATIO,
     logging_steps=10,
     report_to="wandb" if USE_WANDB else "none",
     save_strategy="no",

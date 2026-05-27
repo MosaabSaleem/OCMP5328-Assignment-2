@@ -22,6 +22,7 @@ import sys, os, time, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import (MODEL_NAME, DATA_DIR, MODEL_DIR, METRICS_DIR,
                                EPOCHS, BATCH_SIZE, GRAD_ACCUM, LR, MAX_LENGTH, LAMBDA_CLP,
+                               WARMUP_RATIO, LR_SCHEDULER,
                                LORA_R, LORA_ALPHA, LORA_DROPOUT)
 
 import torch
@@ -29,7 +30,7 @@ import torch.nn.functional as F
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from torch.optim import AdamW
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, get_cosine_schedule_with_warmup
 from peft import LoraConfig, get_peft_model
 
 from Algorithm._wandb_log import start as wandb_start, finish as wandb_finish
@@ -103,6 +104,9 @@ print(f"[Step 4] Training on device: {DEVICE}")
 loader  = DataLoader(CDAPairDataset(df, tok, MAX_LENGTH),
                      batch_size=BATCH_SIZE, shuffle=True)
 opt     = AdamW(mdl.parameters(), lr=LR)
+total_steps   = (len(loader) * EPOCHS + GRAD_ACCUM - 1) // GRAD_ACCUM
+warmup_steps  = max(1, int(total_steps * WARMUP_RATIO))
+scheduler = get_cosine_schedule_with_warmup(opt, warmup_steps, total_steps)
 history = []
 t0      = time.time()
 opt.zero_grad()
@@ -139,6 +143,7 @@ for epoch in range(EPOCHS):
         scaled_loss.backward()
         if (step + 1) % GRAD_ACCUM == 0 or (step + 1) == len(loader):
             opt.step()
+            scheduler.step()
             opt.zero_grad()
 
         history.append({
