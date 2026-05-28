@@ -11,7 +11,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Algorithm.config import MODEL_NAME, MAX_LENGTH, MODEL_DIR
+from Algorithm.config import MODEL_NAME, MAX_LENGTH, MODEL_DIR, HF_TOKEN
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -42,12 +42,14 @@ def load_model(path):
     ref_cfg     = os.path.join(path, "model_reference.json")
     if os.path.isfile(adapter_cfg):
         from peft import PeftModel
-        base = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+        base = AutoModelForCausalLM.from_pretrained(MODEL_NAME, token=HF_TOKEN)
         mdl = PeftModel.from_pretrained(base, path)
     elif os.path.isfile(ref_cfg):
         with open(ref_cfg) as f:
             ref = json.load(f)
-        mdl = AutoModelForCausalLM.from_pretrained(ref.get("base_model", MODEL_NAME))
+        mdl = AutoModelForCausalLM.from_pretrained(
+            ref.get("base_model", MODEL_NAME), token=HF_TOKEN
+        )
     else:
         mdl = AutoModelForCausalLM.from_pretrained(path)
 

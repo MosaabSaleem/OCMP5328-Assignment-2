@@ -324,31 +324,80 @@ if os.path.isfile(bib_path):
         print(f"  Saved: {out}")
 
 
-# ── Plot 6: In-domain gender bias (step4b) ────────────────────────────────────
-indomain_path = os.path.join(METRICS_DIR, "indomain_gender_bias.json")
-if os.path.isfile(indomain_path):
-    with open(indomain_path) as f:
-        indomain = json.load(f)
-    models_present = [m for m in MODELS_TO_EVAL if m in indomain]
+# ── Plot 6 & 7: held-out pronoun stereotype + gender-swap shift (step4b) ──────
+# Step 4b writes stereotype_and_invariance.json with shape
+#   {model: {pronoun_stereotype: {prof: {male_pronoun_share, ...}},
+#            gender_swap_shift:  {prof: {mean_swap_shift_abs, ...}},
+#            summary: {pronoun_skew, swap_shift_abs, swap_shift, *_ci, ...}}}
+held_out_path = os.path.join(METRICS_DIR, "stereotype_and_invariance.json")
+if os.path.isfile(held_out_path):
+    with open(held_out_path) as f:
+        held_out = json.load(f)
+    models_present = [m for m in MODELS_TO_EVAL if m in held_out]
+
+    # Plot 6: per-profession male_pronoun_share — does the model lean toward
+    # "he" or "she" when continuing a bio for each occupation?
     if models_present:
-        professions = sorted({p for m in models_present for p in indomain[m]})
-        x = np.arange(len(professions))
-        width = 0.8 / len(models_present)
-        fig, ax = plt.subplots(figsize=(14, 6))
-        for i, m in enumerate(models_present):
-            vals = [indomain[m].get(p, {}).get("male_bias", float("nan")) for p in professions]
-            offset = (i - (len(models_present) - 1) / 2) * width
-            ax.bar(x + offset, vals, width, label=m, color=COLORS.get(m, "#999"), alpha=0.85)
-        ax.axhline(0.5, color="black", linewidth=1.2, linestyle="--", label="0.5 (neutral)")
-        ax.set_xticks(x)
-        ax.set_xticklabels(professions, rotation=45, ha="right", fontsize=8)
-        ax.set_ylabel("P(he) / (P(he) + P(she))")
-        ax.set_title("In-domain Gender Bias per Profession\n"
-                     "(0.5 = neutral, >0.5 = male-skewed, <0.5 = female-skewed)",
-                     fontsize=11, fontweight="bold")
-        ax.legend(title="Model")
+        professions = sorted({p for m in models_present
+                              for p in held_out[m].get("pronoun_stereotype", {})})
+        if professions:
+            x = np.arange(len(professions))
+            width = 0.8 / len(models_present)
+            fig, ax = plt.subplots(figsize=(14, 6))
+            for i, m in enumerate(models_present):
+                pron = held_out[m].get("pronoun_stereotype", {})
+                vals = [pron.get(p, {}).get("male_pronoun_share", float("nan")) for p in professions]
+                offset = (i - (len(models_present) - 1) / 2) * width
+                ax.bar(x + offset, vals, width, label=m, color=COLORS.get(m, "#999"), alpha=0.85)
+            ax.axhline(0.5, color="black", linewidth=1.2, linestyle="--", label="0.5 (neutral)")
+            ax.set_xticks(x)
+            ax.set_xticklabels(professions, rotation=45, ha="right", fontsize=8)
+            ax.set_ylabel("P(he) / (P(he) + P(she))")
+            ax.set_title("Pronoun preference per profession\n"
+                         "(0.5 = neutral, >0.5 = male-skewed, <0.5 = female-skewed)",
+                         fontsize=11, fontweight="bold")
+            ax.legend(title="Model")
+            plt.tight_layout()
+            out = os.path.join(FIGURES_DIR, "pronoun_stereotype_per_profession.png")
+            plt.savefig(out, dpi=220); plt.close()
+            print(f"  Saved: {out}")
+
+    # Plot 7: per-model headline gender-swap shift — direct test of the
+    # CDA+CLP training objective. Magnitude (left): how much the average
+    # logprob shifts under gender swap (lower = more invariant). Direction
+    # (right): which gender framing the model prefers on average.
+    if models_present and any(held_out[m].get("summary", {}).get("swap_shift_abs") is not None
+                              for m in models_present):
+        fig, (ax_abs, ax_sgn) = plt.subplots(1, 2, figsize=(12, 4.5))
+        abs_vals    = [held_out[m]["summary"].get("swap_shift_abs")    or 0 for m in models_present]
+        abs_cis     = [held_out[m]["summary"].get("swap_shift_abs_ci") or [None, None] for m in models_present]
+        signed_vals = [held_out[m]["summary"].get("swap_shift")        or 0 for m in models_present]
+        signed_cis  = [held_out[m]["summary"].get("swap_shift_ci")     or [None, None] for m in models_present]
+
+        def err_pair(v, ci):
+            lo, hi = ci
+            return (0 if lo is None else max(0, v - lo),
+                    0 if hi is None else max(0, hi - v))
+
+        errs_abs = list(zip(*[err_pair(v, ci) for v, ci in zip(abs_vals, abs_cis)]))
+        errs_sgn = list(zip(*[err_pair(v, ci) for v, ci in zip(signed_vals, signed_cis)]))
+        colors_present = [COLORS.get(m, "#999") for m in models_present]
+
+        ax_abs.bar(models_present, abs_vals, color=colors_present,
+                   yerr=errs_abs, capsize=4, ecolor="black")
+        ax_abs.set_title("Mean |swap_shift| (lower = more gender-invariant)", fontsize=10)
+        ax_abs.set_ylabel("|avg logprob(original) − avg logprob(swapped)|")
+
+        ax_sgn.bar(models_present, signed_vals, color=colors_present,
+                   yerr=errs_sgn, capsize=4, ecolor="black")
+        ax_sgn.axhline(0, color="black", linewidth=1)
+        ax_sgn.set_title("Mean signed swap_shift (0 = balanced)", fontsize=10)
+        ax_sgn.set_ylabel("avg logprob(original) − avg logprob(swapped)")
+
+        plt.suptitle("Gender-swap invariance on held-out bios (95% bootstrap CI)",
+                     fontsize=12, fontweight="bold")
         plt.tight_layout()
-        out = os.path.join(FIGURES_DIR, "indomain_gender_bias.png")
+        out = os.path.join(FIGURES_DIR, "gender_swap_shift.png")
         plt.savefig(out, dpi=220); plt.close()
         print(f"  Saved: {out}")
 
@@ -412,15 +461,10 @@ if wb_run is not None:
             pivot["delta_debiased_minus_base_gemma"] = pivot["debiased"] - pivot["base_gemma"]
         payload["comparison"] = wandb.Table(dataframe=pivot)
 
-    # 3) Figures.
-    for fig_name in ["comparison_bias_metrics.png", "comparison_utility.png",
-                     "bold_gender_gap.png", "training_loss.png",
-                     "dataset_occupation_dist.png", "dataset_gender_imbalance.png",
-                     "indomain_gender_bias.png"]:
-        fig_path = os.path.join(FIGURES_DIR, fig_name)
-        if os.path.isfile(fig_path):
-            payload[f"figures/{os.path.splitext(fig_name)[0]}"] = wandb.Image(fig_path)
-
+    # No static images — the matplotlib PNGs above are for the report,
+    # not for W&B. The workspace can build interactive bar/line charts
+    # directly from `all_results` and `comparison` tables, which gives
+    # cross-run zoom, filtering, and per-model colour by default.
     wb_run.log(payload)
 
     # 4) Headline metrics → run summary. Each scalar shows up as a single

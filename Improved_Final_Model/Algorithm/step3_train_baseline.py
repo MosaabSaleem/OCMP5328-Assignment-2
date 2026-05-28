@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import (MODEL_NAME, DATA_DIR, MODEL_DIR, METRICS_DIR,
                                EPOCHS, BATCH_SIZE, GRAD_ACCUM, LR, MAX_LENGTH,
                                WARMUP_RATIO, LR_SCHEDULER,
-                               LORA_R, LORA_ALPHA, LORA_DROPOUT)
+                               LORA_R, LORA_ALPHA, LORA_DROPOUT, HF_TOKEN)
 
 import pandas as pd
 from datasets import Dataset
@@ -30,10 +30,10 @@ df = pd.read_csv(os.path.join(DATA_DIR, "bias_in_bios.csv")).dropna(subset=["tex
 print(f"[Step 3] Training rows: {len(df)}")
 
 # Load model + tokenizer
-tok = AutoTokenizer.from_pretrained(MODEL_NAME)
+tok = AutoTokenizer.from_pretrained(MODEL_NAME, token=HF_TOKEN)
 if tok.pad_token is None:
     tok.pad_token = tok.eos_token
-mdl = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+mdl = AutoModelForCausalLM.from_pretrained(MODEL_NAME, token=HF_TOKEN)
 
 # Attach LoRA adapters
 lora_cfg = LoraConfig(

@@ -6,15 +6,18 @@ This is the ablation arm that isolates the contribution of CDA from CLP:
   debiased  : LoRA on CDA pairs + CLP penalty        (CDA + CLP)
 Concretely, we train on the original biographies and their gender-swapped
 counterfactuals concatenated as plain LM examples — same trainer, same
-hyperparameters as step 3, just twice as many rows from CDA.
+effective batch size as step 3, but with fp16 + SDPA + dynamic padding to
+make full use of the T4 (the step 3 baseline used static fp32 padding and
+ran at ~2 samples/sec — this config is ~3-5× faster).
 """
-import sys, os, time, json
+import sys, os, time, json, glob
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import (MODEL_NAME, DATA_DIR, MODEL_DIR, METRICS_DIR,
                                EPOCHS, BATCH_SIZE, GRAD_ACCUM, LR, MAX_LENGTH,
                                WARMUP_RATIO, LR_SCHEDULER,
-                               LORA_R, LORA_ALPHA, LORA_DROPOUT)
+                               LORA_R, LORA_ALPHA, LORA_DROPOUT, HF_TOKEN)
 
+import torch
 import pandas as pd
 from datasets import Dataset
 from transformers import (AutoTokenizer, AutoModelForCausalLM,
@@ -25,6 +28,8 @@ from peft import LoraConfig, get_peft_model
 from Algorithm._wandb_log import (start as wandb_start,
                                    finish as wandb_finish,
                                    log_lora_artifact)
+
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 print(f"[Step 3b] Training CDA-ONLY model with LoRA on CDA-augmented data...")
 
@@ -38,10 +43,22 @@ df = pd.read_csv(os.path.join(DATA_DIR, "bias_in_bios_pairs.csv")).dropna(
 texts = df["text"].astype(str).tolist() + df["text_cf"].astype(str).tolist()
 print(f"[Step 3b] Training rows: {len(texts)}  ({len(df)} originals + {len(df)} counterfactuals)")
 
-tok = AutoTokenizer.from_pretrained(MODEL_NAME)
+tok = AutoTokenizer.from_pretrained(MODEL_NAME, token=HF_TOKEN)
 if tok.pad_token is None:
     tok.pad_token = tok.eos_token
-mdl = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+
+# Load base weights in fp32 and use fp16 *autocast* for compute
+# (set via TrainingArguments fp16=True below). Gemma was trained in bf16
+# and its RMSNorm + attention scores overflow when the weights themselves
+# are stored in fp16, producing nan gradients from the first step. fp32
+# weights + fp16 autocast is the stable recipe on T4: weights stay
+# numerically safe, compute still uses Turing fp16 tensor cores.
+# T4 has no bf16 tensor cores so bf16 is not a useful alternative here.
+mdl = AutoModelForCausalLM.from_pretrained(
+    MODEL_NAME, token=HF_TOKEN,
+    attn_implementation="sdpa",
+)
+mdl.config.use_cache = False
 
 lora_cfg = LoraConfig(
     r=LORA_R, lora_alpha=LORA_ALPHA, lora_dropout=LORA_DROPOUT,
@@ -49,19 +66,19 @@ lora_cfg = LoraConfig(
     target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]
 )
 mdl = get_peft_model(mdl, lora_cfg)
+# PEFT freezes the base model, but fp16 autocast still needs the inputs
+# to have requires_grad set so gradient flow reaches the LoRA adapters.
+mdl.enable_input_require_grads()
 mdl.print_trainable_parameters()
 
 ds = Dataset.from_dict({"text": texts})
 def tokenize(batch):
-    enc = tok(batch["text"], truncation=True, padding="max_length",
-              max_length=MAX_LENGTH)
-    enc["labels"] = [
-        [tok_id if mask == 1 else -100
-         for tok_id, mask in zip(ids, attn)]
-        for ids, attn in zip(enc["input_ids"], enc["attention_mask"])
-    ]
-    return enc
+    # No padding here — the collator pads to the longest sequence in the
+    # batch (rounded up to a multiple of 8 for tensor-core alignment).
+    # Labels are produced by DataCollatorForLanguageModeling(mlm=False).
+    return tok(batch["text"], truncation=True, max_length=MAX_LENGTH)
 ds = ds.map(tokenize, batched=True, remove_columns=["text"])
+save_path = os.path.join(MODEL_DIR, "cda_only")
 
 wb_run = wandb_start(
     job_type="train",
@@ -75,29 +92,43 @@ wb_run = wandb_start(
         "lora_r": LORA_R, "lora_alpha": LORA_ALPHA,
         "train_rows": len(texts),
         "n_originals": len(df), "n_counterfactuals": len(df),
+        "precision": "fp16", "attn_impl": "sdpa",
     },
 )
 
 args = TrainingArguments(
-    output_dir=os.path.join(MODEL_DIR, "cda_only"),
+    output_dir=save_path,
     num_train_epochs=EPOCHS,
     per_device_train_batch_size=BATCH_SIZE,
     gradient_accumulation_steps=GRAD_ACCUM,
     learning_rate=LR,
     lr_scheduler_type=LR_SCHEDULER,
     warmup_ratio=WARMUP_RATIO,
-    logging_steps=10,
+    fp16=True,
+    optim="adamw_torch_fused",
+    dataloader_num_workers=4,
+    dataloader_pin_memory=True,
+    train_sampling_strategy="group_by_length",
+    logging_steps=50,
     report_to="wandb" if wb_run is not None else "none",
     save_strategy="epoch",
     save_total_limit=1,
     remove_unused_columns=False,
 )
+
+# Auto-resume from the latest local checkpoint if one exists. Safe to leave
+# on for fresh runs too — it's a no-op when output_dir has no checkpoints.
+resume = bool(glob.glob(os.path.join(save_path, "checkpoint-*")))
+if resume:
+    print(f"[Step 3b] Found existing checkpoint in {save_path}; resuming.")
+
 t0 = time.time()
 Trainer(model=mdl, args=args, train_dataset=ds,
-        data_collator=DataCollatorForLanguageModeling(tok, mlm=False)).train()
+        data_collator=DataCollatorForLanguageModeling(
+            tok, mlm=False, pad_to_multiple_of=8
+        )).train(resume_from_checkpoint=resume)
 elapsed = round(time.time() - t0, 2)
 
-save_path = os.path.join(MODEL_DIR, "cda_only")
 mdl.save_pretrained(save_path)
 tok.save_pretrained(save_path)
 
@@ -113,7 +144,8 @@ log_lora_artifact(
     metadata={"base_model": MODEL_NAME, "method": "cda_only_lora",
               "train_seconds": elapsed, "train_rows": len(texts),
               "epochs": EPOCHS, "lr": LR, "max_length": MAX_LENGTH,
-              "lora_r": LORA_R, "lora_alpha": LORA_ALPHA},
+              "lora_r": LORA_R, "lora_alpha": LORA_ALPHA,
+              "precision": "fp16", "attn_impl": "sdpa"},
 )
 wandb_finish(wb_run)
 print(f"[Step 3b] Done. Saved to {save_path}  ({elapsed}s)")

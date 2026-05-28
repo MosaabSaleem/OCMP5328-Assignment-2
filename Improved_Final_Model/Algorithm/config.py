@@ -4,8 +4,41 @@ All other scripts import from here.
 """
 import os
 
+_ALGO_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(_ALGO_DIR)
+PROJECT_ROOT = os.path.dirname(ROOT)
+
+
+def _load_dotenv(path):
+    if not os.path.isfile(path):
+        return
+    with open(path) as f:
+        for raw_line in f:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            if key.startswith("export "):
+                key = key[len("export "):].strip()
+            if not key or key in os.environ:
+                continue
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+                value = value[1:-1]
+            os.environ[key] = value
+
+
+for _env_path in dict.fromkeys([
+    os.path.join(PROJECT_ROOT, ".env"),
+    os.path.join(ROOT, ".env"),
+    os.path.join(os.getcwd(), ".env"),
+]):
+    _load_dotenv(_env_path)
+
 # ── Model ──────────────────────────────────────────────────────────────────────
 MODEL_NAME   = os.environ.get("MODEL_NAME",   "google/gemma-3-1b-pt")
+HF_TOKEN     = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
 
 # ── Dataset sizes (lower for CPU / smoke tests) ────────────────────────────────
 TRAIN_SAMPLE_SIZE = int(os.environ.get(
@@ -20,8 +53,8 @@ SEED         = int(os.environ.get("SEED",         "42"))
 
 # ── Training hyperparameters ───────────────────────────────────────────────────
 EPOCHS       = int(os.environ.get("EPOCHS",       "2"))
-BATCH_SIZE   = int(os.environ.get("BATCH_SIZE",   "1"))
-GRAD_ACCUM   = int(os.environ.get("GRAD_ACCUM",   "8"))
+BATCH_SIZE   = int(os.environ.get("BATCH_SIZE",   "8"))
+GRAD_ACCUM   = int(os.environ.get("GRAD_ACCUM",   "1"))
 LR           = float(os.environ.get("LR",         "2e-4"))
 MAX_LENGTH   = int(os.environ.get("MAX_LENGTH",   "256"))
 WARMUP_RATIO = float(os.environ.get("WARMUP_RATIO", "0.1"))
@@ -34,7 +67,6 @@ LORA_ALPHA   = 16
 LORA_DROPOUT = 0.05
 
 # ── Paths (auto-created) ───────────────────────────────────────────────────────
-ROOT        = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR    = os.path.join(ROOT, "Input_data")
 RESULTS_DIR = os.path.join(ROOT, "results")
 MODEL_DIR   = os.path.join(RESULTS_DIR, "models")

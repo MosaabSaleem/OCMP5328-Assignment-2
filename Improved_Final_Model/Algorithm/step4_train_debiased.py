@@ -17,13 +17,20 @@ Refs:
   CDA    : Zhao et al., 2018. https://doi.org/10.18653/v1/N18-2003
   CLP    : Garg et al., 2019. https://doi.org/10.1145/3306618.3317950
   LoRA   : Hu et al., 2022.   https://doi.org/10.48550/arXiv.2106.09685
+
+Speed notes (T4 / Turing): fp32 weights + fp16 autocast (same stable recipe
+as step3b — Gemma fp16 weights produce nan grads), SDPA attention, dynamic
+padding via a collate_fn, pinned-memory dataloader. Two forward passes plus
+full-vocab CLP softmaxes mean we drop the per-device micro-batch to 4 with
+grad_accum=2 (effective batch 8, matching the other arms) so the CLP softmax
+intermediates fit in 16 GB.
 """
-import sys, os, time, json
+import sys, os, time, json, glob
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import (MODEL_NAME, DATA_DIR, MODEL_DIR, METRICS_DIR,
-                               EPOCHS, BATCH_SIZE, GRAD_ACCUM, LR, MAX_LENGTH, LAMBDA_CLP,
+                               EPOCHS, LR, MAX_LENGTH, LAMBDA_CLP,
                                WARMUP_RATIO, LR_SCHEDULER,
-                               LORA_R, LORA_ALPHA, LORA_DROPOUT)
+                               LORA_R, LORA_ALPHA, LORA_DROPOUT, HF_TOKEN)
 
 import torch
 import torch.nn.functional as F
@@ -37,11 +44,23 @@ from Algorithm._wandb_log import (start as wandb_start,
                                    finish as wandb_finish,
                                    log_lora_artifact)
 
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+# Override config's BATCH_SIZE/GRAD_ACCUM locally: the two forward passes
+# plus full-vocab CLP softmaxes need much more activation memory than
+# step3b. At batch=4 the CLP softmax intermediates (~4×T×V fp32 tensors
+# from F.log_softmax, which autocast keeps in fp32 for stability) push
+# total usage over 16 GB. Batch=2 with grad_accum=4 + gradient checkpoint-
+# ing on the base model fits comfortably and keeps the effective batch at
+# 8 to match baseline + cda_only.
+BATCH_SIZE = 2
+GRAD_ACCUM = 4
 
 
 class CDAPairDataset(Dataset):
-    """Loads (original, counterfactual) biography pairs for CLP training."""
+    """Loads (original, counterfactual) biography pairs for CLP training.
+    Tokenises without padding; the collate_fn pads dynamically per-batch."""
     def __init__(self, df, tokenizer, max_length):
         self.orig = df["text"].astype(str).tolist()
         self.cf   = df["text_cf"].astype(str).tolist()
@@ -51,19 +70,39 @@ class CDAPairDataset(Dataset):
     def __len__(self):
         return len(self.orig)
 
-    def _enc(self, text):
-        return self.tok(text, truncation=True, padding="max_length",
-                        max_length=self.maxl, return_tensors="pt")
-
     def __getitem__(self, idx):
-        o = self._enc(self.orig[idx])
-        c = self._enc(self.cf[idx])
+        o = self.tok(self.orig[idx], truncation=True, max_length=self.maxl)
+        c = self.tok(self.cf[idx], truncation=True, max_length=self.maxl)
         return {
-            "o_ids":  o["input_ids"].squeeze(0),
-            "o_mask": o["attention_mask"].squeeze(0),
-            "c_ids":  c["input_ids"].squeeze(0),
-            "c_mask": c["attention_mask"].squeeze(0),
+            "o_ids":  o["input_ids"],   "o_mask": o["attention_mask"],
+            "c_ids":  c["input_ids"],   "c_mask": c["attention_mask"],
         }
+
+
+def make_collate(pad_id):
+    """Pad o_ids/c_ids to the longest sequence in the batch (rounded to a
+    multiple of 8 for tensor-core alignment). Both o and c are padded to
+    the same length so positional indices align for the per-position CLP
+    mask `o_mask[:,1:] * c_mask[:,1:]`."""
+    def collate(batch):
+        L = max(
+            max(len(b["o_ids"]) for b in batch),
+            max(len(b["c_ids"]) for b in batch),
+        )
+        L = ((L + 7) // 8) * 8
+
+        def pad(seqs, val):
+            return torch.tensor(
+                [s + [val] * (L - len(s)) for s in seqs], dtype=torch.long
+            )
+
+        return {
+            "o_ids":  pad([b["o_ids"]  for b in batch], pad_id),
+            "o_mask": pad([b["o_mask"] for b in batch], 0),
+            "c_ids":  pad([b["c_ids"]  for b in batch], pad_id),
+            "c_mask": pad([b["c_mask"] for b in batch], 0),
+        }
+    return collate
 
 
 def compute_clp_loss(logits_o, logits_c, mask):
@@ -82,6 +121,9 @@ def compute_clp_loss(logits_o, logits_c, mask):
       * logits_o[t] and logits_c[t] both predict the same target position,
       * mask[t] = 1 only where that target position is a real token in both.
     """
+    # F.log_softmax computes in fp32 internally even on fp16 input — safe to
+    # call inside autocast. exp() back to fp16 can underflow extreme negative
+    # values to 0, which is mathematically correct (they contribute ~0 to KL).
     lp_o = F.log_softmax(logits_o, dim=-1)
     lp_c = F.log_softmax(logits_c, dim=-1)
     p_o, p_c = lp_o.exp(), lp_c.exp()
@@ -96,26 +138,50 @@ print(f"[Step 4] Training DEBIASED model (CDA + CLP + LoRA)  lambda={LAMBDA_CLP}
 df = pd.read_csv(os.path.join(DATA_DIR, "bias_in_bios_pairs.csv")).dropna(subset=["text","text_cf"])
 print(f"[Step 4] Training pairs: {len(df)}")
 
-tok = AutoTokenizer.from_pretrained(MODEL_NAME)
+tok = AutoTokenizer.from_pretrained(MODEL_NAME, token=HF_TOKEN)
 if tok.pad_token is None:
     tok.pad_token = tok.eos_token
-mdl = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+
+# fp32 weights + fp16 autocast (set up below) — Gemma overflows when its
+# weights are stored in fp16, so we keep weights in fp32 and only let the
+# compute run in fp16 via torch.amp.autocast.
+mdl = AutoModelForCausalLM.from_pretrained(
+    MODEL_NAME, token=HF_TOKEN,
+    attn_implementation="sdpa",
+)
+mdl.config.use_cache = False
 mdl = get_peft_model(mdl, LoraConfig(
     r=LORA_R, lora_alpha=LORA_ALPHA, lora_dropout=LORA_DROPOUT,
     bias="none", task_type="CAUSAL_LM",
     target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]
 ))
+# Required for PEFT under fp16 autocast — without this, gradients don't
+# reach the LoRA adapters because the base model is frozen.
+mdl.enable_input_require_grads()
+# Gradient checkpointing trades ~30% extra forward compute for roughly
+# halved activation memory. We only enable it here (not in step3 / 3b)
+# because step4 needs to hold activations from TWO forward passes plus
+# fp32 CLP softmax intermediates simultaneously.
+mdl.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
 mdl.to(DEVICE)
 mdl.print_trainable_parameters()
 mdl.train()
 print(f"[Step 4] Training on device: {DEVICE}")
 
-loader  = DataLoader(CDAPairDataset(df, tok, MAX_LENGTH),
-                     batch_size=BATCH_SIZE, shuffle=True)
-opt     = AdamW(mdl.parameters(), lr=LR)
+loader = DataLoader(
+    CDAPairDataset(df, tok, MAX_LENGTH),
+    batch_size=BATCH_SIZE,
+    shuffle=True,
+    num_workers=4,
+    pin_memory=True,
+    collate_fn=make_collate(tok.pad_token_id),
+    persistent_workers=True,
+)
+opt    = AdamW(mdl.parameters(), lr=LR, fused=True)
 total_steps   = (len(loader) * EPOCHS + GRAD_ACCUM - 1) // GRAD_ACCUM
 warmup_steps  = max(1, int(total_steps * WARMUP_RATIO))
 scheduler = get_cosine_schedule_with_warmup(opt, warmup_steps, total_steps)
+scaler = torch.amp.GradScaler("cuda")
 history = []
 t0      = time.time()
 opt.zero_grad()
@@ -131,58 +197,70 @@ wb_run = wandb_start(
         "lr_scheduler": LR_SCHEDULER, "lambda_clp": LAMBDA_CLP,
         "lora_r": LORA_R, "lora_alpha": LORA_ALPHA,
         "train_rows": len(df),
+        "precision": "fp16-autocast", "attn_impl": "sdpa",
     },
 )
 
 save_path = os.path.join(MODEL_DIR, "debiased")
 
+LOG_EVERY = 10  # local print cadence; W&B logging matches it to keep run light
+
+global_step = 0
 for epoch in range(EPOCHS):
     for step, batch in enumerate(loader):
-        batch = {k: v.to(DEVICE) for k, v in batch.items()}
+        batch = {k: v.to(DEVICE, non_blocking=True) for k, v in batch.items()}
         o_labels = batch["o_ids"].clone()
         c_labels = batch["c_ids"].clone()
         o_labels[batch["o_mask"] == 0] = -100
         c_labels[batch["c_mask"] == 0] = -100
 
-        out_o = mdl(input_ids=batch["o_ids"], attention_mask=batch["o_mask"],
-                    labels=o_labels)
-        out_c = mdl(input_ids=batch["c_ids"], attention_mask=batch["c_mask"],
-                    labels=c_labels)
-        # logits[t] predicts token at position t+1, so shift logits left by
-        # one and the mask right by one. Mask = 1 only where the target
-        # position has a real token in BOTH sequences.
-        shift_o_logits = out_o.logits[:, :-1, :]
-        shift_c_logits = out_c.logits[:, :-1, :]
-        shift_mask     = batch["o_mask"][:, 1:] * batch["c_mask"][:, 1:]
-        l_clp = compute_clp_loss(shift_o_logits, shift_c_logits, shift_mask)
-        loss  = out_o.loss + out_c.loss + LAMBDA_CLP * l_clp
-        scaled_loss = loss / GRAD_ACCUM
+        with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+            out_o = mdl(input_ids=batch["o_ids"], attention_mask=batch["o_mask"],
+                        labels=o_labels)
+            out_c = mdl(input_ids=batch["c_ids"], attention_mask=batch["c_mask"],
+                        labels=c_labels)
+            # logits[t] predicts token at position t+1, so shift logits left
+            # by one and the mask right by one. Mask = 1 only where the
+            # target position is a real token in BOTH sequences.
+            shift_o_logits = out_o.logits[:, :-1, :]
+            shift_c_logits = out_c.logits[:, :-1, :]
+            shift_mask     = batch["o_mask"][:, 1:] * batch["c_mask"][:, 1:]
+            l_clp = compute_clp_loss(shift_o_logits, shift_c_logits, shift_mask)
+            loss  = out_o.loss + out_c.loss + LAMBDA_CLP * l_clp
+            scaled_loss = loss / GRAD_ACCUM
 
-        scaled_loss.backward()
+        scaler.scale(scaled_loss).backward()
         if (step + 1) % GRAD_ACCUM == 0 or (step + 1) == len(loader):
-            opt.step()
+            scaler.unscale_(opt)
+            torch.nn.utils.clip_grad_norm_(mdl.parameters(), max_norm=1.0)
+            scaler.step(opt)
+            scaler.update()
             scheduler.step()
             opt.zero_grad()
+            global_step += 1
 
-        history.append({
+        entry = {
             "epoch": epoch + 1, "step": step + 1,
-            "loss_total":   round(float(loss),      4),
+            "loss_total":   round(float(loss),       4),
             "loss_lm_orig": round(float(out_o.loss), 4),
             "loss_lm_cf":   round(float(out_c.loss), 4),
             "loss_clp":     round(float(l_clp),      4),
-        })
-        if wb_run is not None:
-            wb_run.log({
-                "train/loss_total":   float(loss),
-                "train/loss_lm_orig": float(out_o.loss),
-                "train/loss_lm_cf":   float(out_c.loss),
-                "train/loss_clp":     float(l_clp),
-                "train/epoch":        epoch + 1,
-            })
-        if (step + 1) % 20 == 0:
-            print(history[-1])
+        }
+        history.append(entry)
 
-    # End-of-epoch checkpoint — the Trainer-based steps get this via
+        if (step + 1) % LOG_EVERY == 0:
+            print(entry)
+            if wb_run is not None:
+                wb_run.log({
+                    "train/loss_total":   entry["loss_total"],
+                    "train/loss_lm_orig": entry["loss_lm_orig"],
+                    "train/loss_lm_cf":   entry["loss_lm_cf"],
+                    "train/loss_clp":     entry["loss_clp"],
+                    "train/epoch":        epoch + 1,
+                    "train/global_step":  global_step,
+                })
+
+    # End-of-epoch checkpoint — Trainer-based steps get this via
     # save_strategy="epoch"; this custom loop has to do it explicitly.
     # Overwrites the previous epoch's adapter so disk stays at ~6 MB.
     mdl.save_pretrained(save_path)
@@ -197,7 +275,7 @@ with open(os.path.join(METRICS_DIR, "train_debiased.json"), "w") as f:
     json.dump({
         "model": "debiased", "train_seconds": elapsed,
         "train_rows": len(df), "epochs": EPOCHS,
-        "grad_accum": GRAD_ACCUM,
+        "batch_size": BATCH_SIZE, "grad_accum": GRAD_ACCUM,
         "lambda_clp": LAMBDA_CLP,
         "final_step": history[-1] if history else {}
     }, f, indent=2)
@@ -218,6 +296,7 @@ log_lora_artifact(
               "epochs": EPOCHS, "lr": LR, "max_length": MAX_LENGTH,
               "lambda_clp": LAMBDA_CLP,
               "lora_r": LORA_R, "lora_alpha": LORA_ALPHA,
+              "precision": "fp16-autocast", "attn_impl": "sdpa",
               "final_loss_total": history[-1]["loss_total"] if history else None,
               "final_loss_clp":   history[-1]["loss_clp"]   if history else None},
 )
