@@ -7,7 +7,8 @@ Runs the full assignment pipeline in order:
 3. Train baseline (LoRA only)
 3b. Train cda_only (LoRA on CDA-augmented data, no CLP)
 4. Train debiased (LoRA + CDA + CLP)
-4b. In-domain gender bias eval (Bias-in-Bios test split)
+4b. Held-out gender bias eval (Bias-in-Bios test split):
+    pronoun stereotype + gender-swap invariance
 5. Probability-based evaluation (CrowS-Pairs, StereoSet)
 6. Embedding-based evaluation
 7. Generated-text evaluation (WinoBias, BOLD)
@@ -20,6 +21,15 @@ import sys
 import subprocess
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(ROOT)
+VENV_PYTHON = os.path.join(PROJECT_ROOT, ".venv311", "bin", "python")
+
+if (
+    os.path.isfile(VENV_PYTHON)
+    and os.path.realpath(sys.executable) != os.path.realpath(VENV_PYTHON)
+):
+    os.execv(VENV_PYTHON, [VENV_PYTHON, __file__, *sys.argv[1:]])
+
 sys.path.insert(0, ROOT)
 from Algorithm._wandb_log import ensure_group, enabled as wandb_enabled
 
@@ -37,7 +47,7 @@ STEPS = [
     "Algorithm/step3_train_baseline.py",
     "Algorithm/step3b_train_cda_only.py",
     "Algorithm/step4_train_debiased.py",
-    "Algorithm/step4b_eval_indomain.py",
+    "Algorithm/step4b_eval_bib_test.py",
     "Algorithm/step5_eval_probability.py",
     "Algorithm/step6_eval_embedding.py",
     "Algorithm/step7_eval_generated.py",
