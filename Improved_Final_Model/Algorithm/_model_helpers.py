@@ -71,7 +71,7 @@ def seq_logprob_stats(mdl, tok, text, max_length=None):
     input_ids = enc["input_ids"]
     if input_ids.shape[1] < 2:
         return {"sum": 0.0, "avg": 0.0, "token_count": 0}
-    logits = mdl(**enc).logits
+    logits = mdl(**enc, use_cache=False).logits
     shift_logits = logits[:, :-1, :]
     shift_labels = input_ids[:, 1:]
     log_probs = F.log_softmax(shift_logits, dim=-1)
@@ -97,7 +97,7 @@ def last_hidden(mdl, tok, text, max_length=None):
     """Mean-pooled last hidden state as a sentence embedding (numpy 1-D)."""
     max_length = max_length or MAX_LENGTH
     enc = tok(text, return_tensors="pt", truncation=True, max_length=max_length).to(DEVICE)
-    out = mdl(**enc, output_hidden_states=True)
+    out = mdl(**enc, output_hidden_states=True, use_cache=False)
     h = out.hidden_states[-1]
     mask = enc["attention_mask"].unsqueeze(-1).float()
     pooled = (h * mask).sum(dim=1) / mask.sum(dim=1).clamp_min(1.0)

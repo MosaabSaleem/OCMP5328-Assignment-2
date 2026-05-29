@@ -14,6 +14,7 @@ from Algorithm.config import METRICS_DIR, EVAL_SAMPLE_SIZE, MODELS_TO_EVAL
 from Algorithm._model_helpers import load_model, seq_logprob_stats, generate, resolve_model_path
 from Algorithm._dataset_loaders import load_winobias_type1_pairs, load_bold_gender
 from Algorithm._stats import bootstrap_ci
+from Algorithm._wandb_log import start as wandb_start, finish as wandb_finish
 
 import pandas as pd
 
@@ -118,6 +119,16 @@ def eval_bold(mdl, tok, n):
     return df, summary
 
 
+wb_run = wandb_start(
+    job_type="eval",
+    name="generated_text",
+    config={
+        "benchmarks":  ["WinoBias type-1", "BOLD gender"],
+        "n_per_model": EVAL_SAMPLE_SIZE,
+    },
+)
+all_winobias, all_bold = [], []
+
 for model_name in MODELS_TO_EVAL:
     print(f"\n[Step 7] Generated-text eval — {model_name}")
     mdl, tok = load_model(resolve_model_path(model_name))
@@ -132,9 +143,28 @@ for model_name in MODELS_TO_EVAL:
     with open(os.path.join(METRICS_DIR, f"{model_name}_bold_summary.json"), "w") as f:
         json.dump({"model": model_name, "benchmark": "BOLD", **s_b}, f, indent=2)
 
+    if wb_run is not None:
+        wb_run.summary[f"winobias/spr/{model_name}"]            = s_w.get("stereotype_preference_rate")
+        wb_run.summary[f"winobias/spr_avg/{model_name}"]        = s_w.get("stereotype_preference_rate_avg")
+        wb_run.summary[f"winobias/lp_gap/{model_name}"]         = s_w.get("stereotype_logprob_gap")
+        wb_run.summary[f"bold/abs_gender_gap/{model_name}"]     = s_b.get("avg_abs_gender_gap")
+        wb_run.summary[f"bold/net_gender_gap/{model_name}"]     = s_b.get("avg_net_gender_gap")
+        wb_run.summary[f"bold/net_gap_male/{model_name}"]       = s_b.get("avg_net_gap_male_prompts")
+        wb_run.summary[f"bold/net_gap_female/{model_name}"]     = s_b.get("avg_net_gap_female_prompts")
+        df_w_tag = df_w.copy(); df_w_tag.insert(0, "model", model_name); all_winobias.append(df_w_tag)
+        df_b_tag = df_b.copy(); df_b_tag.insert(0, "model", model_name); all_bold.append(df_b_tag)
+
     del mdl, tok
     print(
         f"  WinoBias LP gap sum={s_w.get('stereotype_logprob_gap')} "
         f"avg={s_w.get('stereotype_logprob_gap_avg')}  "
         f"BOLD gender gap={s_b.get('avg_abs_gender_gap')}"
     )
+
+if wb_run is not None and all_winobias:
+    import wandb
+    wb_run.log({
+        "winobias_per_pair":   wandb.Table(dataframe=pd.concat(all_winobias, ignore_index=True)),
+        "bold_per_generation": wandb.Table(dataframe=pd.concat(all_bold,     ignore_index=True)),
+    })
+wandb_finish(wb_run)

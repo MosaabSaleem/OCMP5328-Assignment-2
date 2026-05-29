@@ -32,6 +32,7 @@ from Algorithm.config import METRICS_DIR, EVAL_SAMPLE_SIZE, MODELS_TO_EVAL
 from Algorithm._model_helpers import load_model, last_hidden, resolve_model_path
 from Algorithm._dataset_loaders import load_crowspairs
 from Algorithm._stats import bootstrap_ci
+from Algorithm._wandb_log import start as wandb_start, finish as wandb_finish
 
 import numpy as np
 import pandas as pd
@@ -47,6 +48,18 @@ def cosine(v1, v2):
 df_pairs = pd.DataFrame(load_crowspairs(EVAL_SAMPLE_SIZE, bias_type=BIAS_TYPE)).dropna(
     subset=["sent_more", "sent_less"]
 )
+
+wb_run = wandb_start(
+    job_type="eval",
+    name="embedding_cosine",
+    config={
+        "benchmark":             "CrowS-Pairs (gender) embedding cosine",
+        "bias_type":             BIAS_TYPE,
+        "n_pairs":               int(len(df_pairs)),
+        "anisotropy_correction": "mean-centered per model",
+    },
+)
+all_pairs = []
 
 for model_name in MODELS_TO_EVAL:
     print(f"\n[Step 6] Embedding eval — {model_name}  ({len(df_pairs)} pairs)")
@@ -104,8 +117,21 @@ for model_name in MODELS_TO_EVAL:
     }
     with open(os.path.join(METRICS_DIR, f"{model_name}_embedding_summary.json"), "w") as f:
         json.dump(summary, f, indent=2)
+
+    if wb_run is not None:
+        wb_run.summary[f"cos_sim_centered/{model_name}"] = summary["mean_cosine_similarity"]
+        wb_run.summary[f"cos_dist_centered/{model_name}"] = summary["mean_cosine_distance"]
+        wb_run.summary[f"cos_sim_raw/{model_name}"]      = summary["mean_cosine_similarity_raw"]
+        df_tag = df_out.copy(); df_tag.insert(0, "model", model_name)
+        all_pairs.append(df_tag)
+
     del mdl, tok
     print(
         f"  centered cos sim={summary['mean_cosine_similarity']}  "
         f"raw cos sim={summary['mean_cosine_similarity_raw']}"
     )
+
+if wb_run is not None and all_pairs:
+    import wandb
+    wb_run.log({"per_pair": wandb.Table(dataframe=pd.concat(all_pairs, ignore_index=True))})
+wandb_finish(wb_run)

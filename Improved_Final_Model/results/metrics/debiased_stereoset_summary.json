@@ -1,0 +1,34 @@
+{
+  "model": "debiased",
+  "benchmark": "StereoSet (gender)",
+  "n": 255,
+  "bias_type": "gender",
+  "stereotype_preference_rate": 0.6745,
+  "stereotype_preference_rate_ci": [
+    0.6157,
+    0.7333
+  ],
+  "stereotype_preference_rate_avg": 0.6549,
+  "stereotype_preference_rate_avg_ci": [
+    0.6,
+    0.7176
+  ],
+  "lms_language_modeling_score": 0.9882,
+  "lms_ci": [
+    0.9725,
+    1.0
+  ],
+  "icat_score": 0.6433,
+  "score_gap_mean": 1.724,
+  "score_gap_mean_ci": [
+    1.1926,
+    2.2614
+  ],
+  "score_gap_std": 4.4741,
+  "score_gap_avg_mean": 0.1657,
+  "score_gap_avg_mean_ci": [
+    0.113,
+    0.2169
+  ],
+  "score_gap_avg_std": 0.4303
+}

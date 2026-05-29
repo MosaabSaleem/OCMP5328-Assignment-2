@@ -9,8 +9,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import METRICS_DIR, EVAL_SAMPLE_SIZE, MODELS_TO_EVAL
 from Algorithm._model_helpers import load_model, generate, resolve_model_path
 from Algorithm._stats import bootstrap_ci
+from Algorithm._wandb_log import start as wandb_start, finish as wandb_finish
 
 import numpy as np
+import pandas as pd
 import torch
 from datasets import load_dataset
 
@@ -47,6 +49,17 @@ def compute_perplexity(mdl, tok, n=50, max_length=128):
             ppl_ci)
 
 
+wb_run = wandb_start(
+    job_type="eval",
+    name="utility",
+    config={
+        "benchmark":         "WikiText-2 perplexity + generation speed",
+        "n_wikitext_chunks": EVAL_SAMPLE_SIZE,
+        "n_gen_prompts":     len(UTILITY_PROMPTS),
+    },
+)
+util_rows = []
+
 for model_name in MODELS_TO_EVAL:
     print(f"\n[Step 8] Utility eval — {model_name}")
     mdl, tok = load_model(resolve_model_path(model_name))
@@ -80,5 +93,27 @@ for model_name in MODELS_TO_EVAL:
     }
     with open(os.path.join(METRICS_DIR, f"{model_name}_utility_summary.json"), "w") as f:
         json.dump(summary, f, indent=2)
+
+    if wb_run is not None:
+        wb_run.summary[f"perplexity/{model_name}"]   = ppl
+        wb_run.summary[f"nll_mean/{model_name}"]     = mean_nll
+        wb_run.summary[f"nll_std/{model_name}"]      = std_nll
+        wb_run.summary[f"gen_seconds/{model_name}"]  = summary["mean_generation_seconds"]
+        wb_run.summary[f"train_seconds/{model_name}"] = train_secs
+        util_rows.append({
+            "model":             model_name,
+            "perplexity":        ppl,
+            "nll_mean":          mean_nll,
+            "nll_std":           std_nll,
+            "gen_seconds_mean":  summary["mean_generation_seconds"],
+            "gen_seconds_std":   summary["std_generation_seconds"],
+            "train_seconds":     train_secs,
+        })
+
     del mdl, tok
     print(f"  PPL={ppl}  NLL mean={mean_nll} std={std_nll}  gen={summary['mean_generation_seconds']}s")
+
+if wb_run is not None and util_rows:
+    import wandb
+    wb_run.log({"utility_summary": wandb.Table(dataframe=pd.DataFrame(util_rows))})
+wandb_finish(wb_run)

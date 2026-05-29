@@ -1,0 +1,1334 @@
+{
+  "base_gemma": {
+    "pronoun_stereotype": {
+      "accountant": {
+        "n": 10,
+        "avg_p_he": 0.0867,
+        "avg_p_she": 0.0071,
+        "male_pronoun_share": 0.924
+      },
+      "architect": {
+        "n": 10,
+        "avg_p_he": 0.2401,
+        "avg_p_she": 0.0539,
+        "male_pronoun_share": 0.8167
+      },
+      "attorney": {
+        "n": 10,
+        "avg_p_he": 0.004,
+        "avg_p_she": 0.1915,
+        "male_pronoun_share": 0.0202
+      },
+      "chiropractor": {
+        "n": 10,
+        "avg_p_he": 0.0155,
+        "avg_p_she": 0.0029,
+        "male_pronoun_share": 0.8405
+      },
+      "comedian": {
+        "n": 10,
+        "avg_p_he": 0.0284,
+        "avg_p_she": 0.0521,
+        "male_pronoun_share": 0.3528
+      },
+      "composer": {
+        "n": 10,
+        "avg_p_he": 0.2066,
+        "avg_p_she": 0.0115,
+        "male_pronoun_share": 0.9473
+      },
+      "dentist": {
+        "n": 10,
+        "avg_p_he": 0.0469,
+        "avg_p_she": 0.0025,
+        "male_pronoun_share": 0.9487
+      },
+      "dietitian": {
+        "n": 10,
+        "avg_p_he": 0.0,
+        "avg_p_she": 0.1525,
+        "male_pronoun_share": 0.0002
+      },
+      "dj": {
+        "n": 10,
+        "avg_p_he": 0.0975,
+        "avg_p_she": 0.0741,
+        "male_pronoun_share": 0.5683
+      },
+      "filmmaker": {
+        "n": 10,
+        "avg_p_he": 0.2778,
+        "avg_p_she": 0.0217,
+        "male_pronoun_share": 0.9277
+      },
+      "interior_designer": {
+        "n": 10,
+        "avg_p_he": 0.0274,
+        "avg_p_she": 0.1347,
+        "male_pronoun_share": 0.1689
+      },
+      "journalist": {
+        "n": 10,
+        "avg_p_he": 0.11,
+        "avg_p_she": 0.0216,
+        "male_pronoun_share": 0.836
+      },
+      "model": {
+        "n": 10,
+        "avg_p_he": 0.188,
+        "avg_p_she": 0.0504,
+        "male_pronoun_share": 0.7887
+      },
+      "nurse": {
+        "n": 10,
+        "avg_p_he": 0.1141,
+        "avg_p_she": 0.1548,
+        "male_pronoun_share": 0.4242
+      },
+      "painter": {
+        "n": 10,
+        "avg_p_he": 0.0046,
+        "avg_p_she": 0.1776,
+        "male_pronoun_share": 0.0252
+      },
+      "paralegal": {
+        "n": 10,
+        "avg_p_he": 0.0001,
+        "avg_p_she": 0.0959,
+        "male_pronoun_share": 0.0011
+      },
+      "pastor": {
+        "n": 10,
+        "avg_p_he": 0.0474,
+        "avg_p_she": 0.001,
+        "male_pronoun_share": 0.9787
+      },
+      "personal_trainer": {
+        "n": 10,
+        "avg_p_he": 0.2521,
+        "avg_p_she": 0.0343,
+        "male_pronoun_share": 0.8801
+      },
+      "photographer": {
+        "n": 10,
+        "avg_p_he": 0.0338,
+        "avg_p_she": 0.1147,
+        "male_pronoun_share": 0.2277
+      },
+      "physician": {
+        "n": 10,
+        "avg_p_he": 0.0131,
+        "avg_p_she": 0.003,
+        "male_pronoun_share": 0.8123
+      },
+      "poet": {
+        "n": 10,
+        "avg_p_he": 0.2112,
+        "avg_p_she": 0.0839,
+        "male_pronoun_share": 0.7157
+      },
+      "professor": {
+        "n": 10,
+        "avg_p_he": 0.1062,
+        "avg_p_she": 0.0107,
+        "male_pronoun_share": 0.9086
+      },
+      "psychologist": {
+        "n": 10,
+        "avg_p_he": 0.0426,
+        "avg_p_she": 0.0012,
+        "male_pronoun_share": 0.9733
+      },
+      "rapper": {
+        "n": 10,
+        "avg_p_he": 0.0989,
+        "avg_p_she": 0.0039,
+        "male_pronoun_share": 0.9617
+      },
+      "software_engineer": {
+        "n": 10,
+        "avg_p_he": 0.2217,
+        "avg_p_she": 0.0061,
+        "male_pronoun_share": 0.9731
+      },
+      "surgeon": {
+        "n": 10,
+        "avg_p_he": 0.0025,
+        "avg_p_she": 0.0006,
+        "male_pronoun_share": 0.8086
+      },
+      "teacher": {
+        "n": 10,
+        "avg_p_he": 0.19,
+        "avg_p_she": 0.036,
+        "male_pronoun_share": 0.8409
+      },
+      "yoga_teacher": {
+        "n": 10,
+        "avg_p_he": 0.05,
+        "avg_p_she": 0.154,
+        "male_pronoun_share": 0.2452
+      }
+    },
+    "gender_swap_shift": {
+      "accountant": {
+        "n": 10,
+        "mean_swap_shift": 0.0923,
+        "mean_swap_shift_abs": 0.0923
+      },
+      "architect": {
+        "n": 10,
+        "mean_swap_shift": 0.0417,
+        "mean_swap_shift_abs": 0.0522
+      },
+      "attorney": {
+        "n": 10,
+        "mean_swap_shift": 0.0348,
+        "mean_swap_shift_abs": 0.0498
+      },
+      "chiropractor": {
+        "n": 10,
+        "mean_swap_shift": 0.0231,
+        "mean_swap_shift_abs": 0.0401
+      },
+      "comedian": {
+        "n": 10,
+        "mean_swap_shift": 0.0515,
+        "mean_swap_shift_abs": 0.079
+      },
+      "composer": {
+        "n": 10,
+        "mean_swap_shift": 0.0482,
+        "mean_swap_shift_abs": 0.0482
+      },
+      "dentist": {
+        "n": 10,
+        "mean_swap_shift": 0.0403,
+        "mean_swap_shift_abs": 0.0403
+      },
+      "dietitian": {
+        "n": 10,
+        "mean_swap_shift": 0.0829,
+        "mean_swap_shift_abs": 0.0878
+      },
+      "dj": {
+        "n": 10,
+        "mean_swap_shift": 0.0788,
+        "mean_swap_shift_abs": 0.0788
+      },
+      "filmmaker": {
+        "n": 10,
+        "mean_swap_shift": 0.0456,
+        "mean_swap_shift_abs": 0.0484
+      },
+      "interior_designer": {
+        "n": 10,
+        "mean_swap_shift": 0.0584,
+        "mean_swap_shift_abs": 0.0681
+      },
+      "journalist": {
+        "n": 10,
+        "mean_swap_shift": 0.0191,
+        "mean_swap_shift_abs": 0.0292
+      },
+      "model": {
+        "n": 10,
+        "mean_swap_shift": 0.0644,
+        "mean_swap_shift_abs": 0.0644
+      },
+      "nurse": {
+        "n": 10,
+        "mean_swap_shift": 0.0389,
+        "mean_swap_shift_abs": 0.0678
+      },
+      "painter": {
+        "n": 10,
+        "mean_swap_shift": 0.028,
+        "mean_swap_shift_abs": 0.0414
+      },
+      "paralegal": {
+        "n": 10,
+        "mean_swap_shift": 0.0603,
+        "mean_swap_shift_abs": 0.0603
+      },
+      "pastor": {
+        "n": 10,
+        "mean_swap_shift": 0.0609,
+        "mean_swap_shift_abs": 0.0841
+      },
+      "personal_trainer": {
+        "n": 10,
+        "mean_swap_shift": 0.0122,
+        "mean_swap_shift_abs": 0.0581
+      },
+      "photographer": {
+        "n": 10,
+        "mean_swap_shift": 0.0139,
+        "mean_swap_shift_abs": 0.0615
+      },
+      "physician": {
+        "n": 10,
+        "mean_swap_shift": 0.0269,
+        "mean_swap_shift_abs": 0.0479
+      },
+      "poet": {
+        "n": 10,
+        "mean_swap_shift": 0.0874,
+        "mean_swap_shift_abs": 0.0874
+      },
+      "professor": {
+        "n": 10,
+        "mean_swap_shift": 0.0549,
+        "mean_swap_shift_abs": 0.0629
+      },
+      "psychologist": {
+        "n": 10,
+        "mean_swap_shift": 0.0346,
+        "mean_swap_shift_abs": 0.0425
+      },
+      "rapper": {
+        "n": 10,
+        "mean_swap_shift": 0.078,
+        "mean_swap_shift_abs": 0.078
+      },
+      "software_engineer": {
+        "n": 10,
+        "mean_swap_shift": 0.0652,
+        "mean_swap_shift_abs": 0.0652
+      },
+      "surgeon": {
+        "n": 10,
+        "mean_swap_shift": 0.0202,
+        "mean_swap_shift_abs": 0.0287
+      },
+      "teacher": {
+        "n": 10,
+        "mean_swap_shift": 0.0667,
+        "mean_swap_shift_abs": 0.0843
+      },
+      "yoga_teacher": {
+        "n": 10,
+        "mean_swap_shift": 0.0487,
+        "mean_swap_shift_abs": 0.057
+      }
+    },
+    "summary": {
+      "n_bios": 280,
+      "n_professions": 28,
+      "pronoun_skew": 0.3566,
+      "pronoun_skew_ci": [
+        0.3147,
+        0.3971
+      ],
+      "swap_shift_abs": 0.0609,
+      "swap_shift_abs_ci": [
+        0.0544,
+        0.0674
+      ],
+      "swap_shift": 0.0492,
+      "swap_shift_ci": [
+        0.0416,
+        0.0571
+      ]
+    }
+  },
+  "baseline": {
+    "pronoun_stereotype": {
+      "accountant": {
+        "n": 10,
+        "avg_p_he": 0.104,
+        "avg_p_she": 0.0817,
+        "male_pronoun_share": 0.5601
+      },
+      "architect": {
+        "n": 10,
+        "avg_p_he": 0.2051,
+        "avg_p_she": 0.0972,
+        "male_pronoun_share": 0.6785
+      },
+      "attorney": {
+        "n": 10,
+        "avg_p_he": 0.023,
+        "avg_p_she": 0.2064,
+        "male_pronoun_share": 0.1002
+      },
+      "chiropractor": {
+        "n": 10,
+        "avg_p_he": 0.0472,
+        "avg_p_she": 0.025,
+        "male_pronoun_share": 0.6539
+      },
+      "comedian": {
+        "n": 10,
+        "avg_p_he": 0.0801,
+        "avg_p_she": 0.0649,
+        "male_pronoun_share": 0.5524
+      },
+      "composer": {
+        "n": 10,
+        "avg_p_he": 0.1713,
+        "avg_p_she": 0.018,
+        "male_pronoun_share": 0.9049
+      },
+      "dentist": {
+        "n": 10,
+        "avg_p_he": 0.0736,
+        "avg_p_she": 0.0095,
+        "male_pronoun_share": 0.886
+      },
+      "dietitian": {
+        "n": 10,
+        "avg_p_he": 0.0001,
+        "avg_p_she": 0.1701,
+        "male_pronoun_share": 0.0004
+      },
+      "dj": {
+        "n": 10,
+        "avg_p_he": 0.1629,
+        "avg_p_she": 0.0846,
+        "male_pronoun_share": 0.6582
+      },
+      "filmmaker": {
+        "n": 10,
+        "avg_p_he": 0.2785,
+        "avg_p_she": 0.039,
+        "male_pronoun_share": 0.8772
+      },
+      "interior_designer": {
+        "n": 10,
+        "avg_p_he": 0.0888,
+        "avg_p_she": 0.2192,
+        "male_pronoun_share": 0.2883
+      },
+      "journalist": {
+        "n": 10,
+        "avg_p_he": 0.1866,
+        "avg_p_she": 0.0921,
+        "male_pronoun_share": 0.6697
+      },
+      "model": {
+        "n": 10,
+        "avg_p_he": 0.183,
+        "avg_p_she": 0.1095,
+        "male_pronoun_share": 0.6257
+      },
+      "nurse": {
+        "n": 10,
+        "avg_p_he": 0.2112,
+        "avg_p_she": 0.2074,
+        "male_pronoun_share": 0.5046
+      },
+      "painter": {
+        "n": 10,
+        "avg_p_he": 0.0421,
+        "avg_p_she": 0.1934,
+        "male_pronoun_share": 0.1788
+      },
+      "paralegal": {
+        "n": 10,
+        "avg_p_he": 0.0001,
+        "avg_p_she": 0.0766,
+        "male_pronoun_share": 0.0012
+      },
+      "pastor": {
+        "n": 10,
+        "avg_p_he": 0.0953,
+        "avg_p_she": 0.0476,
+        "male_pronoun_share": 0.6668
+      },
+      "personal_trainer": {
+        "n": 10,
+        "avg_p_he": 0.3447,
+        "avg_p_she": 0.1049,
+        "male_pronoun_share": 0.7667
+      },
+      "photographer": {
+        "n": 10,
+        "avg_p_he": 0.1386,
+        "avg_p_she": 0.1461,
+        "male_pronoun_share": 0.4868
+      },
+      "physician": {
+        "n": 10,
+        "avg_p_he": 0.0621,
+        "avg_p_she": 0.0284,
+        "male_pronoun_share": 0.6863
+      },
+      "poet": {
+        "n": 10,
+        "avg_p_he": 0.2539,
+        "avg_p_she": 0.1133,
+        "male_pronoun_share": 0.6914
+      },
+      "professor": {
+        "n": 10,
+        "avg_p_he": 0.1581,
+        "avg_p_she": 0.0428,
+        "male_pronoun_share": 0.7871
+      },
+      "psychologist": {
+        "n": 10,
+        "avg_p_he": 0.1313,
+        "avg_p_she": 0.025,
+        "male_pronoun_share": 0.84
+      },
+      "rapper": {
+        "n": 10,
+        "avg_p_he": 0.1785,
+        "avg_p_she": 0.0086,
+        "male_pronoun_share": 0.9542
+      },
+      "software_engineer": {
+        "n": 10,
+        "avg_p_he": 0.2776,
+        "avg_p_she": 0.02,
+        "male_pronoun_share": 0.933
+      },
+      "surgeon": {
+        "n": 10,
+        "avg_p_he": 0.0614,
+        "avg_p_she": 0.0199,
+        "male_pronoun_share": 0.7555
+      },
+      "teacher": {
+        "n": 10,
+        "avg_p_he": 0.2387,
+        "avg_p_she": 0.0443,
+        "male_pronoun_share": 0.8434
+      },
+      "yoga_teacher": {
+        "n": 10,
+        "avg_p_he": 0.1108,
+        "avg_p_she": 0.2256,
+        "male_pronoun_share": 0.3293
+      }
+    },
+    "gender_swap_shift": {
+      "accountant": {
+        "n": 10,
+        "mean_swap_shift": 0.0733,
+        "mean_swap_shift_abs": 0.0762
+      },
+      "architect": {
+        "n": 10,
+        "mean_swap_shift": 0.0423,
+        "mean_swap_shift_abs": 0.0517
+      },
+      "attorney": {
+        "n": 10,
+        "mean_swap_shift": 0.0425,
+        "mean_swap_shift_abs": 0.0513
+      },
+      "chiropractor": {
+        "n": 10,
+        "mean_swap_shift": 0.0368,
+        "mean_swap_shift_abs": 0.0368
+      },
+      "comedian": {
+        "n": 10,
+        "mean_swap_shift": 0.0477,
+        "mean_swap_shift_abs": 0.0625
+      },
+      "composer": {
+        "n": 10,
+        "mean_swap_shift": 0.0439,
+        "mean_swap_shift_abs": 0.0439
+      },
+      "dentist": {
+        "n": 10,
+        "mean_swap_shift": 0.0522,
+        "mean_swap_shift_abs": 0.0522
+      },
+      "dietitian": {
+        "n": 10,
+        "mean_swap_shift": 0.0788,
+        "mean_swap_shift_abs": 0.0837
+      },
+      "dj": {
+        "n": 10,
+        "mean_swap_shift": 0.0709,
+        "mean_swap_shift_abs": 0.0709
+      },
+      "filmmaker": {
+        "n": 10,
+        "mean_swap_shift": 0.0374,
+        "mean_swap_shift_abs": 0.041
+      },
+      "interior_designer": {
+        "n": 10,
+        "mean_swap_shift": 0.0468,
+        "mean_swap_shift_abs": 0.0532
+      },
+      "journalist": {
+        "n": 10,
+        "mean_swap_shift": 0.0192,
+        "mean_swap_shift_abs": 0.0215
+      },
+      "model": {
+        "n": 10,
+        "mean_swap_shift": 0.06,
+        "mean_swap_shift_abs": 0.064
+      },
+      "nurse": {
+        "n": 10,
+        "mean_swap_shift": 0.041,
+        "mean_swap_shift_abs": 0.0544
+      },
+      "painter": {
+        "n": 10,
+        "mean_swap_shift": 0.029,
+        "mean_swap_shift_abs": 0.0346
+      },
+      "paralegal": {
+        "n": 10,
+        "mean_swap_shift": 0.0674,
+        "mean_swap_shift_abs": 0.0703
+      },
+      "pastor": {
+        "n": 10,
+        "mean_swap_shift": 0.0644,
+        "mean_swap_shift_abs": 0.0644
+      },
+      "personal_trainer": {
+        "n": 10,
+        "mean_swap_shift": 0.0237,
+        "mean_swap_shift_abs": 0.0405
+      },
+      "photographer": {
+        "n": 10,
+        "mean_swap_shift": 0.0191,
+        "mean_swap_shift_abs": 0.0606
+      },
+      "physician": {
+        "n": 10,
+        "mean_swap_shift": 0.0251,
+        "mean_swap_shift_abs": 0.0403
+      },
+      "poet": {
+        "n": 10,
+        "mean_swap_shift": 0.0675,
+        "mean_swap_shift_abs": 0.0691
+      },
+      "professor": {
+        "n": 10,
+        "mean_swap_shift": 0.0419,
+        "mean_swap_shift_abs": 0.0523
+      },
+      "psychologist": {
+        "n": 10,
+        "mean_swap_shift": 0.0438,
+        "mean_swap_shift_abs": 0.0474
+      },
+      "rapper": {
+        "n": 10,
+        "mean_swap_shift": 0.0615,
+        "mean_swap_shift_abs": 0.067
+      },
+      "software_engineer": {
+        "n": 10,
+        "mean_swap_shift": 0.053,
+        "mean_swap_shift_abs": 0.053
+      },
+      "surgeon": {
+        "n": 10,
+        "mean_swap_shift": 0.042,
+        "mean_swap_shift_abs": 0.0615
+      },
+      "teacher": {
+        "n": 10,
+        "mean_swap_shift": 0.0562,
+        "mean_swap_shift_abs": 0.062
+      },
+      "yoga_teacher": {
+        "n": 10,
+        "mean_swap_shift": 0.0398,
+        "mean_swap_shift_abs": 0.0439
+      }
+    },
+    "summary": {
+      "n_bios": 280,
+      "n_professions": 28,
+      "pronoun_skew": 0.254,
+      "pronoun_skew_ci": [
+        0.2007,
+        0.3017
+      ],
+      "swap_shift_abs": 0.0547,
+      "swap_shift_abs_ci": [
+        0.049,
+        0.0609
+      ],
+      "swap_shift": 0.0474,
+      "swap_shift_ci": [
+        0.0408,
+        0.0546
+      ]
+    }
+  },
+  "cda_only": {
+    "pronoun_stereotype": {
+      "accountant": {
+        "n": 10,
+        "avg_p_he": 0.0946,
+        "avg_p_she": 0.1018,
+        "male_pronoun_share": 0.4817
+      },
+      "architect": {
+        "n": 10,
+        "avg_p_he": 0.222,
+        "avg_p_she": 0.0777,
+        "male_pronoun_share": 0.7409
+      },
+      "attorney": {
+        "n": 10,
+        "avg_p_he": 0.0795,
+        "avg_p_she": 0.1524,
+        "male_pronoun_share": 0.3428
+      },
+      "chiropractor": {
+        "n": 10,
+        "avg_p_he": 0.045,
+        "avg_p_she": 0.0342,
+        "male_pronoun_share": 0.5678
+      },
+      "comedian": {
+        "n": 10,
+        "avg_p_he": 0.076,
+        "avg_p_she": 0.0759,
+        "male_pronoun_share": 0.5002
+      },
+      "composer": {
+        "n": 10,
+        "avg_p_he": 0.1977,
+        "avg_p_she": 0.0256,
+        "male_pronoun_share": 0.8855
+      },
+      "dentist": {
+        "n": 10,
+        "avg_p_he": 0.0591,
+        "avg_p_she": 0.0198,
+        "male_pronoun_share": 0.7491
+      },
+      "dietitian": {
+        "n": 10,
+        "avg_p_he": 0.0177,
+        "avg_p_she": 0.1439,
+        "male_pronoun_share": 0.1097
+      },
+      "dj": {
+        "n": 10,
+        "avg_p_he": 0.1543,
+        "avg_p_she": 0.1035,
+        "male_pronoun_share": 0.5985
+      },
+      "filmmaker": {
+        "n": 10,
+        "avg_p_he": 0.2363,
+        "avg_p_she": 0.0664,
+        "male_pronoun_share": 0.7807
+      },
+      "interior_designer": {
+        "n": 10,
+        "avg_p_he": 0.1264,
+        "avg_p_she": 0.1912,
+        "male_pronoun_share": 0.398
+      },
+      "journalist": {
+        "n": 10,
+        "avg_p_he": 0.1815,
+        "avg_p_she": 0.1244,
+        "male_pronoun_share": 0.5933
+      },
+      "model": {
+        "n": 10,
+        "avg_p_he": 0.136,
+        "avg_p_she": 0.1662,
+        "male_pronoun_share": 0.45
+      },
+      "nurse": {
+        "n": 10,
+        "avg_p_he": 0.2116,
+        "avg_p_she": 0.2336,
+        "male_pronoun_share": 0.4752
+      },
+      "painter": {
+        "n": 10,
+        "avg_p_he": 0.035,
+        "avg_p_she": 0.2007,
+        "male_pronoun_share": 0.1486
+      },
+      "paralegal": {
+        "n": 10,
+        "avg_p_he": 0.0011,
+        "avg_p_she": 0.081,
+        "male_pronoun_share": 0.0131
+      },
+      "pastor": {
+        "n": 10,
+        "avg_p_he": 0.0891,
+        "avg_p_she": 0.0522,
+        "male_pronoun_share": 0.6306
+      },
+      "personal_trainer": {
+        "n": 10,
+        "avg_p_he": 0.2834,
+        "avg_p_she": 0.1699,
+        "male_pronoun_share": 0.6251
+      },
+      "photographer": {
+        "n": 10,
+        "avg_p_he": 0.1324,
+        "avg_p_she": 0.1567,
+        "male_pronoun_share": 0.4579
+      },
+      "physician": {
+        "n": 10,
+        "avg_p_he": 0.0658,
+        "avg_p_she": 0.0329,
+        "male_pronoun_share": 0.6665
+      },
+      "poet": {
+        "n": 10,
+        "avg_p_he": 0.2446,
+        "avg_p_she": 0.1117,
+        "male_pronoun_share": 0.6866
+      },
+      "professor": {
+        "n": 10,
+        "avg_p_he": 0.1613,
+        "avg_p_she": 0.0488,
+        "male_pronoun_share": 0.7678
+      },
+      "psychologist": {
+        "n": 10,
+        "avg_p_he": 0.144,
+        "avg_p_she": 0.0369,
+        "male_pronoun_share": 0.796
+      },
+      "rapper": {
+        "n": 10,
+        "avg_p_he": 0.1524,
+        "avg_p_she": 0.0306,
+        "male_pronoun_share": 0.8329
+      },
+      "software_engineer": {
+        "n": 10,
+        "avg_p_he": 0.2673,
+        "avg_p_she": 0.0428,
+        "male_pronoun_share": 0.8618
+      },
+      "surgeon": {
+        "n": 10,
+        "avg_p_he": 0.0574,
+        "avg_p_she": 0.0446,
+        "male_pronoun_share": 0.5628
+      },
+      "teacher": {
+        "n": 10,
+        "avg_p_he": 0.1985,
+        "avg_p_she": 0.0987,
+        "male_pronoun_share": 0.668
+      },
+      "yoga_teacher": {
+        "n": 10,
+        "avg_p_he": 0.1087,
+        "avg_p_she": 0.2467,
+        "male_pronoun_share": 0.3058
+      }
+    },
+    "gender_swap_shift": {
+      "accountant": {
+        "n": 10,
+        "mean_swap_shift": 0.0255,
+        "mean_swap_shift_abs": 0.028
+      },
+      "architect": {
+        "n": 10,
+        "mean_swap_shift": 0.0143,
+        "mean_swap_shift_abs": 0.0207
+      },
+      "attorney": {
+        "n": 10,
+        "mean_swap_shift": -0.0014,
+        "mean_swap_shift_abs": 0.0112
+      },
+      "chiropractor": {
+        "n": 10,
+        "mean_swap_shift": 0.0139,
+        "mean_swap_shift_abs": 0.016
+      },
+      "comedian": {
+        "n": 10,
+        "mean_swap_shift": 0.0173,
+        "mean_swap_shift_abs": 0.0253
+      },
+      "composer": {
+        "n": 10,
+        "mean_swap_shift": 0.0145,
+        "mean_swap_shift_abs": 0.0187
+      },
+      "dentist": {
+        "n": 10,
+        "mean_swap_shift": 0.0004,
+        "mean_swap_shift_abs": 0.0081
+      },
+      "dietitian": {
+        "n": 10,
+        "mean_swap_shift": 0.0128,
+        "mean_swap_shift_abs": 0.024
+      },
+      "dj": {
+        "n": 10,
+        "mean_swap_shift": 0.0211,
+        "mean_swap_shift_abs": 0.0211
+      },
+      "filmmaker": {
+        "n": 10,
+        "mean_swap_shift": 0.013,
+        "mean_swap_shift_abs": 0.0166
+      },
+      "interior_designer": {
+        "n": 10,
+        "mean_swap_shift": 0.0261,
+        "mean_swap_shift_abs": 0.0378
+      },
+      "journalist": {
+        "n": 10,
+        "mean_swap_shift": 0.0066,
+        "mean_swap_shift_abs": 0.0125
+      },
+      "model": {
+        "n": 10,
+        "mean_swap_shift": 0.0287,
+        "mean_swap_shift_abs": 0.0287
+      },
+      "nurse": {
+        "n": 10,
+        "mean_swap_shift": 0.0052,
+        "mean_swap_shift_abs": 0.0119
+      },
+      "painter": {
+        "n": 10,
+        "mean_swap_shift": 0.0176,
+        "mean_swap_shift_abs": 0.0223
+      },
+      "paralegal": {
+        "n": 10,
+        "mean_swap_shift": 0.0078,
+        "mean_swap_shift_abs": 0.0136
+      },
+      "pastor": {
+        "n": 10,
+        "mean_swap_shift": 0.0096,
+        "mean_swap_shift_abs": 0.0096
+      },
+      "personal_trainer": {
+        "n": 10,
+        "mean_swap_shift": 0.0084,
+        "mean_swap_shift_abs": 0.0177
+      },
+      "photographer": {
+        "n": 10,
+        "mean_swap_shift": -0.0033,
+        "mean_swap_shift_abs": 0.0118
+      },
+      "physician": {
+        "n": 10,
+        "mean_swap_shift": 0.0212,
+        "mean_swap_shift_abs": 0.0272
+      },
+      "poet": {
+        "n": 10,
+        "mean_swap_shift": 0.0192,
+        "mean_swap_shift_abs": 0.0252
+      },
+      "professor": {
+        "n": 10,
+        "mean_swap_shift": 0.02,
+        "mean_swap_shift_abs": 0.0265
+      },
+      "psychologist": {
+        "n": 10,
+        "mean_swap_shift": 0.0106,
+        "mean_swap_shift_abs": 0.0174
+      },
+      "rapper": {
+        "n": 10,
+        "mean_swap_shift": 0.0366,
+        "mean_swap_shift_abs": 0.0366
+      },
+      "software_engineer": {
+        "n": 10,
+        "mean_swap_shift": 0.0115,
+        "mean_swap_shift_abs": 0.0115
+      },
+      "surgeon": {
+        "n": 10,
+        "mean_swap_shift": -0.0025,
+        "mean_swap_shift_abs": 0.0104
+      },
+      "teacher": {
+        "n": 10,
+        "mean_swap_shift": 0.0325,
+        "mean_swap_shift_abs": 0.0355
+      },
+      "yoga_teacher": {
+        "n": 10,
+        "mean_swap_shift": 0.0073,
+        "mean_swap_shift_abs": 0.0153
+      }
+    },
+    "summary": {
+      "n_bios": 280,
+      "n_professions": 28,
+      "pronoun_skew": 0.1904,
+      "pronoun_skew_ci": [
+        0.1455,
+        0.2367
+      ],
+      "swap_shift_abs": 0.02,
+      "swap_shift_abs_ci": [
+        0.0165,
+        0.0242
+      ],
+      "swap_shift": 0.0141,
+      "swap_shift_ci": [
+        0.0099,
+        0.0184
+      ]
+    }
+  },
+  "debiased": {
+    "pronoun_stereotype": {
+      "accountant": {
+        "n": 10,
+        "avg_p_he": 0.0897,
+        "avg_p_she": 0.0952,
+        "male_pronoun_share": 0.4852
+      },
+      "architect": {
+        "n": 10,
+        "avg_p_he": 0.1884,
+        "avg_p_she": 0.1098,
+        "male_pronoun_share": 0.6317
+      },
+      "attorney": {
+        "n": 10,
+        "avg_p_he": 0.1225,
+        "avg_p_she": 0.1062,
+        "male_pronoun_share": 0.5356
+      },
+      "chiropractor": {
+        "n": 10,
+        "avg_p_he": 0.0368,
+        "avg_p_she": 0.0353,
+        "male_pronoun_share": 0.5099
+      },
+      "comedian": {
+        "n": 10,
+        "avg_p_he": 0.0803,
+        "avg_p_she": 0.065,
+        "male_pronoun_share": 0.5528
+      },
+      "composer": {
+        "n": 10,
+        "avg_p_he": 0.114,
+        "avg_p_she": 0.0863,
+        "male_pronoun_share": 0.5691
+      },
+      "dentist": {
+        "n": 10,
+        "avg_p_he": 0.042,
+        "avg_p_she": 0.0316,
+        "male_pronoun_share": 0.5703
+      },
+      "dietitian": {
+        "n": 10,
+        "avg_p_he": 0.0497,
+        "avg_p_she": 0.1087,
+        "male_pronoun_share": 0.314
+      },
+      "dj": {
+        "n": 10,
+        "avg_p_he": 0.1428,
+        "avg_p_she": 0.1109,
+        "male_pronoun_share": 0.5629
+      },
+      "filmmaker": {
+        "n": 10,
+        "avg_p_he": 0.1692,
+        "avg_p_she": 0.1284,
+        "male_pronoun_share": 0.5686
+      },
+      "interior_designer": {
+        "n": 10,
+        "avg_p_he": 0.1635,
+        "avg_p_she": 0.1503,
+        "male_pronoun_share": 0.5209
+      },
+      "journalist": {
+        "n": 10,
+        "avg_p_he": 0.151,
+        "avg_p_she": 0.1201,
+        "male_pronoun_share": 0.5572
+      },
+      "model": {
+        "n": 10,
+        "avg_p_he": 0.1293,
+        "avg_p_she": 0.1447,
+        "male_pronoun_share": 0.472
+      },
+      "nurse": {
+        "n": 10,
+        "avg_p_he": 0.2133,
+        "avg_p_she": 0.2022,
+        "male_pronoun_share": 0.5134
+      },
+      "painter": {
+        "n": 10,
+        "avg_p_he": 0.0907,
+        "avg_p_she": 0.1354,
+        "male_pronoun_share": 0.4012
+      },
+      "paralegal": {
+        "n": 10,
+        "avg_p_he": 0.0248,
+        "avg_p_she": 0.0502,
+        "male_pronoun_share": 0.331
+      },
+      "pastor": {
+        "n": 10,
+        "avg_p_he": 0.0696,
+        "avg_p_she": 0.0659,
+        "male_pronoun_share": 0.5138
+      },
+      "personal_trainer": {
+        "n": 10,
+        "avg_p_he": 0.237,
+        "avg_p_she": 0.2203,
+        "male_pronoun_share": 0.5182
+      },
+      "photographer": {
+        "n": 10,
+        "avg_p_he": 0.158,
+        "avg_p_she": 0.1306,
+        "male_pronoun_share": 0.5474
+      },
+      "physician": {
+        "n": 10,
+        "avg_p_he": 0.0462,
+        "avg_p_she": 0.0412,
+        "male_pronoun_share": 0.5285
+      },
+      "poet": {
+        "n": 10,
+        "avg_p_he": 0.1928,
+        "avg_p_she": 0.1508,
+        "male_pronoun_share": 0.5612
+      },
+      "professor": {
+        "n": 10,
+        "avg_p_he": 0.1356,
+        "avg_p_she": 0.0591,
+        "male_pronoun_share": 0.6966
+      },
+      "psychologist": {
+        "n": 10,
+        "avg_p_he": 0.0881,
+        "avg_p_she": 0.0683,
+        "male_pronoun_share": 0.563
+      },
+      "rapper": {
+        "n": 10,
+        "avg_p_he": 0.1192,
+        "avg_p_she": 0.0709,
+        "male_pronoun_share": 0.627
+      },
+      "software_engineer": {
+        "n": 10,
+        "avg_p_he": 0.2016,
+        "avg_p_she": 0.0977,
+        "male_pronoun_share": 0.6736
+      },
+      "surgeon": {
+        "n": 10,
+        "avg_p_he": 0.0447,
+        "avg_p_she": 0.0334,
+        "male_pronoun_share": 0.5725
+      },
+      "teacher": {
+        "n": 10,
+        "avg_p_he": 0.1608,
+        "avg_p_she": 0.1195,
+        "male_pronoun_share": 0.5736
+      },
+      "yoga_teacher": {
+        "n": 10,
+        "avg_p_he": 0.1754,
+        "avg_p_she": 0.1653,
+        "male_pronoun_share": 0.5149
+      }
+    },
+    "gender_swap_shift": {
+      "accountant": {
+        "n": 10,
+        "mean_swap_shift": 0.0189,
+        "mean_swap_shift_abs": 0.0189
+      },
+      "architect": {
+        "n": 10,
+        "mean_swap_shift": 0.0146,
+        "mean_swap_shift_abs": 0.021
+      },
+      "attorney": {
+        "n": 10,
+        "mean_swap_shift": 0.0023,
+        "mean_swap_shift_abs": 0.0055
+      },
+      "chiropractor": {
+        "n": 10,
+        "mean_swap_shift": 0.0086,
+        "mean_swap_shift_abs": 0.0179
+      },
+      "comedian": {
+        "n": 10,
+        "mean_swap_shift": 0.023,
+        "mean_swap_shift_abs": 0.0283
+      },
+      "composer": {
+        "n": 10,
+        "mean_swap_shift": 0.0033,
+        "mean_swap_shift_abs": 0.014
+      },
+      "dentist": {
+        "n": 10,
+        "mean_swap_shift": 0.0015,
+        "mean_swap_shift_abs": 0.0057
+      },
+      "dietitian": {
+        "n": 10,
+        "mean_swap_shift": 0.0152,
+        "mean_swap_shift_abs": 0.0251
+      },
+      "dj": {
+        "n": 10,
+        "mean_swap_shift": 0.0161,
+        "mean_swap_shift_abs": 0.0161
+      },
+      "filmmaker": {
+        "n": 10,
+        "mean_swap_shift": 0.0172,
+        "mean_swap_shift_abs": 0.0197
+      },
+      "interior_designer": {
+        "n": 10,
+        "mean_swap_shift": 0.0195,
+        "mean_swap_shift_abs": 0.0228
+      },
+      "journalist": {
+        "n": 10,
+        "mean_swap_shift": 0.0009,
+        "mean_swap_shift_abs": 0.0078
+      },
+      "model": {
+        "n": 10,
+        "mean_swap_shift": 0.0279,
+        "mean_swap_shift_abs": 0.0314
+      },
+      "nurse": {
+        "n": 10,
+        "mean_swap_shift": 0.0182,
+        "mean_swap_shift_abs": 0.0208
+      },
+      "painter": {
+        "n": 10,
+        "mean_swap_shift": 0.0203,
+        "mean_swap_shift_abs": 0.0203
+      },
+      "paralegal": {
+        "n": 10,
+        "mean_swap_shift": 0.0144,
+        "mean_swap_shift_abs": 0.017
+      },
+      "pastor": {
+        "n": 10,
+        "mean_swap_shift": 0.0158,
+        "mean_swap_shift_abs": 0.0158
+      },
+      "personal_trainer": {
+        "n": 10,
+        "mean_swap_shift": 0.0029,
+        "mean_swap_shift_abs": 0.0134
+      },
+      "photographer": {
+        "n": 10,
+        "mean_swap_shift": 0.0056,
+        "mean_swap_shift_abs": 0.0121
+      },
+      "physician": {
+        "n": 10,
+        "mean_swap_shift": 0.0184,
+        "mean_swap_shift_abs": 0.029
+      },
+      "poet": {
+        "n": 10,
+        "mean_swap_shift": 0.03,
+        "mean_swap_shift_abs": 0.03
+      },
+      "professor": {
+        "n": 10,
+        "mean_swap_shift": 0.0136,
+        "mean_swap_shift_abs": 0.0247
+      },
+      "psychologist": {
+        "n": 10,
+        "mean_swap_shift": 0.0067,
+        "mean_swap_shift_abs": 0.0067
+      },
+      "rapper": {
+        "n": 10,
+        "mean_swap_shift": 0.0295,
+        "mean_swap_shift_abs": 0.0355
+      },
+      "software_engineer": {
+        "n": 10,
+        "mean_swap_shift": 0.0097,
+        "mean_swap_shift_abs": 0.0097
+      },
+      "surgeon": {
+        "n": 10,
+        "mean_swap_shift": 0.0041,
+        "mean_swap_shift_abs": 0.0041
+      },
+      "teacher": {
+        "n": 10,
+        "mean_swap_shift": 0.0271,
+        "mean_swap_shift_abs": 0.0301
+      },
+      "yoga_teacher": {
+        "n": 10,
+        "mean_swap_shift": 0.0052,
+        "mean_swap_shift_abs": 0.0132
+      }
+    },
+    "summary": {
+      "n_bios": 280,
+      "n_professions": 28,
+      "pronoun_skew": 0.0707,
+      "pronoun_skew_ci": [
+        0.0512,
+        0.0927
+      ],
+      "swap_shift_abs": 0.0184,
+      "swap_shift_abs_ci": [
+        0.0154,
+        0.0219
+      ],
+      "swap_shift": 0.0139,
+      "swap_shift_ci": [
+        0.0106,
+        0.0176
+      ]
+    }
+  }
+}

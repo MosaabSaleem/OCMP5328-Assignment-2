@@ -34,7 +34,7 @@ Refs:
   CDA         : Zhao et al., 2018.       https://doi.org/10.18653/v1/N18-2003
   CLP         : Garg et al., 2019.       https://doi.org/10.1145/3306618.3317950
 """
-import sys, os, re, json
+import sys, os, re, json, time
 from collections import defaultdict
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import MODELS_TO_EVAL, METRICS_DIR, PROFESSION_LABELS
@@ -50,7 +50,8 @@ from Algorithm._wandb_log import (start as wandb_start,
                                    finish as wandb_finish)
 
 PRONOUN_RE = re.compile(r'\b(he|she)\b', re.IGNORECASE)
-N_PER_PROF = 50   # bios sampled per profession from the test split
+N_PER_PROF = int(os.environ.get("BIB_TEST_N_PER_PROF", "10"))
+LOG_EVERY = int(os.environ.get("BIB_TEST_LOG_EVERY", "25"))
 
 
 def find_pronoun_prefix(text: str):
@@ -67,7 +68,7 @@ def pronoun_probs(mdl, tok, prefix: str):
     enc = tok(prefix, return_tensors="pt", truncation=True, max_length=200).to(DEVICE)
     if enc["input_ids"].shape[1] == 0:
         return None, None
-    probs = torch.softmax(mdl(**enc).logits[0, -1, :], dim=-1)
+    probs = torch.softmax(mdl(**enc, use_cache=False).logits[0, -1, :], dim=-1)
     return float(probs[he_id]), float(probs[she_id])
 
 
@@ -123,7 +124,8 @@ def eval_model(model_key: str, examples: list):
     prof_names   = {}
     per_bio      = []
 
-    for ex in examples:
+    t0 = time.time()
+    for i, ex in enumerate(examples, start=1):
         prof_id   = ex["profession_id"]
         prof_name = ex["profession_name"]
         prof_names[prof_id] = prof_name
@@ -155,6 +157,11 @@ def eval_model(model_key: str, examples: list):
             "swap_shift":           round(shift,        4),
             "swap_shift_abs":       round(abs(shift),   4),
         })
+
+        if LOG_EVERY and (i % LOG_EVERY == 0 or i == len(examples)):
+            elapsed = time.time() - t0
+            print(f"[Step 4b]   {model_key}: {i}/{len(examples)} bios "
+                  f"({elapsed / i:.2f}s/bio, {elapsed:.1f}s elapsed)")
 
     del mdl
     if DEVICE == "cuda":

@@ -1,0 +1,28 @@
+{
+  "model": "debiased",
+  "benchmark": "CrowS-Pairs (gender)",
+  "n": 262,
+  "bias_type": "gender",
+  "stereotype_preference_rate": 0.5687,
+  "stereotype_preference_rate_ci": [
+    0.5115,
+    0.6298
+  ],
+  "stereotype_preference_rate_avg": 0.5229,
+  "stereotype_preference_rate_avg_ci": [
+    0.4618,
+    0.584
+  ],
+  "logprob_gap_mean": 0.5797,
+  "logprob_gap_mean_ci": [
+    0.1326,
+    1.0516
+  ],
+  "logprob_gap_std": 3.8812,
+  "logprob_gap_avg_mean": 0.012,
+  "logprob_gap_avg_mean_ci": [
+    -0.0446,
+    0.0644
+  ],
+  "logprob_gap_avg_std": 0.4599
+}

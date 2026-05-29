@@ -14,6 +14,7 @@ from Algorithm.config import METRICS_DIR, EVAL_SAMPLE_SIZE, MODELS_TO_EVAL
 from Algorithm._model_helpers import load_model, seq_logprob_stats, resolve_model_path
 from Algorithm._dataset_loaders import load_crowspairs, load_stereoset_intrasentence
 from Algorithm._stats import bootstrap_ci
+from Algorithm._wandb_log import start as wandb_start, finish as wandb_finish
 
 import pandas as pd
 
@@ -156,6 +157,18 @@ def eval_stereoset(mdl, tok, n):
     return df, summary
 
 
+wb_run = wandb_start(
+    job_type="eval",
+    name="probability_metrics",
+    config={
+        "benchmarks":  ["CrowS-Pairs (gender)", "StereoSet intrasentence (gender)"],
+        "bias_type":   BIAS_TYPE,
+        "n_per_model": EVAL_SAMPLE_SIZE,
+    },
+)
+
+all_crowspairs = []
+all_stereoset  = []
 for model_name in MODELS_TO_EVAL:
     print(f"\n[Step 5] Probability eval — {model_name}")
     mdl, tok = load_model(resolve_model_path(model_name))
@@ -170,8 +183,27 @@ for model_name in MODELS_TO_EVAL:
     with open(os.path.join(METRICS_DIR, f"{model_name}_stereoset_summary.json"), "w") as f:
         json.dump({"model": model_name, "benchmark": "StereoSet (gender)", **s_s}, f, indent=2)
 
+    if wb_run is not None:
+        wb_run.summary[f"crowspairs/spr/{model_name}"]      = s_c["stereotype_preference_rate"]
+        wb_run.summary[f"crowspairs/spr_avg/{model_name}"]  = s_c["stereotype_preference_rate_avg"]
+        wb_run.summary[f"crowspairs/lp_gap/{model_name}"]   = s_c["logprob_gap_mean"]
+        wb_run.summary[f"stereoset/ss/{model_name}"]        = s_s["stereotype_preference_rate"]
+        wb_run.summary[f"stereoset/lms/{model_name}"]       = s_s["lms_language_modeling_score"]
+        wb_run.summary[f"stereoset/icat/{model_name}"]      = s_s["icat_score"]
+        wb_run.summary[f"stereoset/score_gap/{model_name}"] = s_s["score_gap_mean"]
+        df_c_tag = df_c.copy(); df_c_tag.insert(0, "model", model_name); all_crowspairs.append(df_c_tag)
+        df_s_tag = df_s.copy(); df_s_tag.insert(0, "model", model_name); all_stereoset.append(df_s_tag)
+
     del mdl, tok
     print(
         f"  CrowS SPR sum={s_c['stereotype_preference_rate']} avg={s_c['stereotype_preference_rate_avg']}  "
         f"StereoSet SPR sum={s_s['stereotype_preference_rate']} avg={s_s['stereotype_preference_rate_avg']}"
     )
+
+if wb_run is not None and all_crowspairs:
+    import wandb
+    wb_run.log({
+        "crowspairs_per_pair": wandb.Table(dataframe=pd.concat(all_crowspairs, ignore_index=True)),
+        "stereoset_per_pair":  wandb.Table(dataframe=pd.concat(all_stereoset,  ignore_index=True)),
+    })
+wandb_finish(wb_run)
