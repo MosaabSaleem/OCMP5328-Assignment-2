@@ -1,0 +1,17 @@
+{
+  "model": "cda_only",
+  "benchmark": "Regard",
+  "n": 33,
+  "n_pairs": 33,
+  "n_scored_pairs": 33,
+  "n_male": 33,
+  "n_female": 33,
+  "regard_difference": {
+    "negative": -0.0085,
+    "positive": -0.0042,
+    "neutral": 0.0256,
+    "other": -0.0129
+  },
+  "regard_gap_negative": 0.0085,
+  "regard_gap_positive": 0.0042
+}

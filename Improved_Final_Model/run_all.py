@@ -11,7 +11,7 @@ Runs the full assignment pipeline in order:
     pronoun stereotype + gender-swap invariance
 5. Probability-based evaluation (CrowS-Pairs, StereoSet)
 6. Embedding-based evaluation
-7. Generated-text evaluation (WinoBias, BOLD)
+7. Generated-text evaluation (Regard gender minimal pairs)
 8. Utility evaluation (perplexity, generation speed)
 9. Plot all figures + log final results to W&B
 """

@@ -3,7 +3,7 @@ Step 9 — Aggregate all saved metrics and produce figures for the report.
 Outputs (all in results/figures/):
   comparison_bias_metrics.png  — bar chart of all bias metrics
   comparison_utility.png       — perplexity and generation speed
-  bold_gender_gap.png          — histogram of BOLD gender-term gap
+  regard_gender_gap.png        — bar chart of Regard gender gaps
   training_loss.png            — training loss curve (debiased model)
   all_results_table.csv        — flat table of every metric value
 """
@@ -26,6 +26,7 @@ COLORS = {"base_gemma": "#c0a37b", "baseline": "#5591c7",
           "cda_only": "#e08850", "debiased": "#6daa45"}
 EXPECTED_MODELS = set(MODELS_TO_EVAL)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+LEGACY_STEP7_BENCHMARKS = {"WinoBias", "BOLD"}
 
 
 def benchmark_eval_script(benchmark):
@@ -34,7 +35,7 @@ def benchmark_eval_script(benchmark):
         return "step5_eval_probability.py"
     if benchmark.startswith("Embedding cosine"):
         return "step6_eval_embedding.py"
-    if benchmark in {"WinoBias", "BOLD"}:
+    if benchmark == "Regard":
         return "step7_eval_generated.py"
     if benchmark == "Utility":
         return "step8_eval_utility.py"
@@ -131,11 +132,20 @@ def validate_summary_files(summaries):
 
 # ── Collect all *_summary.json files ──────────────────────────────────────────
 summaries = []
+skipped_legacy = []
 for fpath in glob.glob(os.path.join(METRICS_DIR, "*_summary.json")):
     with open(fpath) as f:
         obj = json.load(f)
+    if obj.get("benchmark") in LEGACY_STEP7_BENCHMARKS:
+        skipped_legacy.append(os.path.basename(fpath))
+        continue
     obj["_source_file"] = os.path.basename(fpath)
     summaries.append(obj)
+if skipped_legacy:
+    print(
+        "[Step 9] Skipping legacy Step 7 summaries: "
+        + ", ".join(sorted(skipped_legacy))
+    )
 
 validate_summary_files(summaries)
 
@@ -168,6 +178,8 @@ bias_metrics = [
     "stereotype_logprob_gap",
     "stereotype_logprob_gap_avg",
     "avg_abs_gender_gap",
+    "regard_gap_negative",
+    "regard_gap_positive",
 ]
 df_bias = df_all[df_all["metric"].isin(bias_metrics)].copy()
 if len(df_bias):
@@ -228,25 +240,30 @@ if len(df_util):
     print(f"  Saved: {out}")
 
 
-# ── Plot 3: BOLD gender gap histogram ─────────────────────────────────────────
-bold_data = {}
+# ── Plot 3: Regard gender gap bars ───────────────────────────────────────────
+regard_data = {}
 for m in MODELS_TO_EVAL:
-    p = os.path.join(METRICS_DIR, f"{m}_bold.csv")
+    p = os.path.join(METRICS_DIR, f"{m}_regard_summary.json")
     if os.path.isfile(p):
-        bold_data[m] = pd.read_csv(p)
-if bold_data:
-    fig, axes = plt.subplots(1, len(bold_data), figsize=(6 * len(bold_data), 4), sharey=True)
-    if len(bold_data) == 1:
-        axes = [axes]
-    for ax, (m, df_b) in zip(axes, bold_data.items()):
-        if "abs_gender_gap" in df_b.columns:
-            ax.hist(df_b["abs_gender_gap"].dropna(), bins=15,
-                    color=COLORS.get(m, "#999"), alpha=0.85, edgecolor="white")
-            ax.set_title(f"BOLD Gender Term Gap — {m}", fontsize=10)
-            ax.set_xlabel("Absolute gender term count gap")
-            ax.set_ylabel("Frequency")
+        with open(p) as f:
+            regard_data[m] = json.load(f)
+if regard_data:
+    metrics = ["regard_gap_negative", "regard_gap_positive"]
+    x = np.arange(len(metrics))
+    models_order = [m for m in MODELS_TO_EVAL if m in regard_data]
+    width = 0.8 / max(len(models_order), 1)
+    fig, ax = plt.subplots(figsize=(7, 4))
+    for i, m in enumerate(models_order):
+        vals = [regard_data[m].get(metric, 0.0) for metric in metrics]
+        ax.bar(x + (i - (len(models_order) - 1) / 2) * width, vals,
+               width=width, color=COLORS.get(m, "#999"), label=m)
+    ax.set_xticks(x)
+    ax.set_xticklabels(["Negative regard gap", "Positive regard gap"])
+    ax.set_title("Regard Gender Gap", fontsize=12, fontweight="bold")
+    ax.set_ylabel("Absolute difference")
+    ax.legend(title="Model")
     plt.tight_layout()
-    out = os.path.join(FIGURES_DIR, "bold_gender_gap.png")
+    out = os.path.join(FIGURES_DIR, "regard_gender_gap.png")
     plt.savefig(out, dpi=220); plt.close()
     print(f"  Saved: {out}")
 
@@ -425,8 +442,8 @@ HEADLINE_METRICS = [
     ("CrowS-Pairs (gender)",                  "stereotype_preference_rate"),
     ("StereoSet (gender)",                    "stereotype_preference_rate"),
     ("StereoSet (gender)",                    "icat_score"),
-    ("WinoBias",                              "stereotype_preference_rate"),
-    ("BOLD",                                  "avg_abs_gender_gap"),
+    ("Regard",                                "regard_gap_negative"),
+    ("Regard",                                "regard_gap_positive"),
     ("Embedding cosine (CrowS-Pairs gender)", "mean_cosine_similarity"),
     ("Utility",                               "perplexity_wikitext2"),
 ]

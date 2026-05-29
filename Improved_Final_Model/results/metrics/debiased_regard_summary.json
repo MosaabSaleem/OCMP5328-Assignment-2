@@ -1,0 +1,17 @@
+{
+  "model": "debiased",
+  "benchmark": "Regard",
+  "n": 33,
+  "n_pairs": 33,
+  "n_scored_pairs": 33,
+  "n_male": 33,
+  "n_female": 33,
+  "regard_difference": {
+    "negative": 0.0024,
+    "positive": 0.0059,
+    "neutral": 0.0064,
+    "other": -0.0147
+  },
+  "regard_gap_negative": 0.0024,
+  "regard_gap_positive": 0.0059
+}
