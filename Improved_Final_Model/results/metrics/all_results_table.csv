@@ -1,0 +1,148 @@
+model,benchmark,metric,value
+cda_only,CrowS-Pairs (gender),stereotype_preference_rate,0.5611
+cda_only,CrowS-Pairs (gender),stereotype_preference_rate_avg,0.5267
+cda_only,CrowS-Pairs (gender),logprob_gap_mean,0.5243
+cda_only,CrowS-Pairs (gender),logprob_gap_std,4.1434
+cda_only,CrowS-Pairs (gender),logprob_gap_avg_mean,0.0075
+cda_only,CrowS-Pairs (gender),logprob_gap_avg_std,0.4761
+base_gemma,CrowS-Pairs (gender),stereotype_preference_rate,0.5992
+base_gemma,CrowS-Pairs (gender),stereotype_preference_rate_avg,0.5802
+base_gemma,CrowS-Pairs (gender),logprob_gap_mean,1.0029
+base_gemma,CrowS-Pairs (gender),logprob_gap_std,5.0079
+base_gemma,CrowS-Pairs (gender),logprob_gap_avg_mean,0.0437
+base_gemma,CrowS-Pairs (gender),logprob_gap_avg_std,0.5713
+baseline,Weave bias scorer,n_pairs,92.0
+baseline,Weave bias scorer,n_generations,184.0
+baseline,Weave bias scorer,mean_gender_bias_score,0.0936
+baseline,Weave bias scorer,gender_bias_flag_rate,0.0543
+baseline,Weave bias scorer,male_mean_gender_bias,0.0249
+baseline,Weave bias scorer,female_mean_gender_bias,0.1623
+baseline,Weave bias scorer,gender_bias_gap,0.1374
+baseline,Weave bias scorer,gender_bias_gap_signed,-0.1374
+baseline,Weave bias scorer,mean_racial_bias_score,0.0463
+baseline,CrowS-Pairs (gender),stereotype_preference_rate,0.6298
+baseline,CrowS-Pairs (gender),stereotype_preference_rate_avg,0.6069
+baseline,CrowS-Pairs (gender),logprob_gap_mean,0.8488
+baseline,CrowS-Pairs (gender),logprob_gap_std,4.2352
+baseline,CrowS-Pairs (gender),logprob_gap_avg_mean,0.0345
+baseline,CrowS-Pairs (gender),logprob_gap_avg_std,0.4676
+cda_only,Regard,n_pairs,92.0
+cda_only,Regard,n_scored_pairs,92.0
+cda_only,Regard,regard_gap_negative,0.0253
+cda_only,Regard,regard_gap_negative_signed,-0.0253
+baseline,Regard,n_pairs,92.0
+baseline,Regard,n_scored_pairs,92.0
+baseline,Regard,regard_gap_negative,0.0004
+baseline,Regard,regard_gap_negative_signed,0.0004
+debiased,Weave bias scorer,n_pairs,92.0
+debiased,Weave bias scorer,n_generations,184.0
+debiased,Weave bias scorer,mean_gender_bias_score,0.0751
+debiased,Weave bias scorer,gender_bias_flag_rate,0.0326
+debiased,Weave bias scorer,male_mean_gender_bias,0.0412
+debiased,Weave bias scorer,female_mean_gender_bias,0.1091
+debiased,Weave bias scorer,gender_bias_gap,0.068
+debiased,Weave bias scorer,gender_bias_gap_signed,-0.068
+debiased,Weave bias scorer,mean_racial_bias_score,0.0409
+cda_only,Embedding cosine (CrowS-Pairs gender),mean_cosine_similarity,0.9148
+cda_only,Embedding cosine (CrowS-Pairs gender),std_cosine_similarity,0.0993
+cda_only,Embedding cosine (CrowS-Pairs gender),mean_cosine_distance,0.0852
+cda_only,Embedding cosine (CrowS-Pairs gender),mean_cosine_similarity_raw,0.9877
+base_gemma,Weave bias scorer,n_pairs,92.0
+base_gemma,Weave bias scorer,n_generations,184.0
+base_gemma,Weave bias scorer,mean_gender_bias_score,0.1352
+base_gemma,Weave bias scorer,gender_bias_flag_rate,0.1196
+base_gemma,Weave bias scorer,male_mean_gender_bias,0.0247
+base_gemma,Weave bias scorer,female_mean_gender_bias,0.2456
+base_gemma,Weave bias scorer,gender_bias_gap,0.2209
+base_gemma,Weave bias scorer,gender_bias_gap_signed,-0.2209
+base_gemma,Weave bias scorer,mean_racial_bias_score,0.0872
+baseline,Embedding cosine (CrowS-Pairs gender),mean_cosine_similarity,0.8898
+baseline,Embedding cosine (CrowS-Pairs gender),std_cosine_similarity,0.0964
+baseline,Embedding cosine (CrowS-Pairs gender),mean_cosine_distance,0.1102
+baseline,Embedding cosine (CrowS-Pairs gender),mean_cosine_similarity_raw,0.9846
+baseline,StereoSet (gender),stereotype_preference_rate,0.6824
+baseline,StereoSet (gender),stereotype_preference_rate_avg,0.6863
+baseline,StereoSet (gender),lms_language_modeling_score,0.9882
+baseline,StereoSet (gender),icat_score,0.6278
+baseline,StereoSet (gender),score_gap_mean,1.9324
+baseline,StereoSet (gender),score_gap_std,4.4953
+baseline,StereoSet (gender),score_gap_avg_mean,0.1933
+baseline,StereoSet (gender),score_gap_avg_std,0.4369
+cda_only,Utility,perplexity_wikitext2,32.3426
+cda_only,Utility,mean_nll_loss,3.4764
+cda_only,Utility,std_nll_loss,0.8259
+cda_only,Utility,mean_generation_seconds,2.415
+cda_only,Utility,std_generation_seconds,0.009
+cda_only,Utility,train_seconds,763.52
+base_gemma,Utility,perplexity_wikitext2,30.1038
+base_gemma,Utility,mean_nll_loss,3.4047
+base_gemma,Utility,std_nll_loss,0.7978
+base_gemma,Utility,mean_generation_seconds,1.816
+base_gemma,Utility,std_generation_seconds,0.001
+baseline,Utility,perplexity_wikitext2,30.6977
+baseline,Utility,mean_nll_loss,3.4242
+baseline,Utility,std_nll_loss,0.7998
+baseline,Utility,mean_generation_seconds,2.428
+baseline,Utility,std_generation_seconds,0.007
+baseline,Utility,train_seconds,4973.78
+debiased,Utility,perplexity_wikitext2,31.1127
+debiased,Utility,mean_nll_loss,3.4376
+debiased,Utility,std_nll_loss,0.804
+debiased,Utility,mean_generation_seconds,2.406
+debiased,Utility,std_generation_seconds,0.007
+debiased,Utility,train_seconds,3539.76
+base_gemma,Embedding cosine (CrowS-Pairs gender),mean_cosine_similarity,0.8774
+base_gemma,Embedding cosine (CrowS-Pairs gender),std_cosine_similarity,0.1056
+base_gemma,Embedding cosine (CrowS-Pairs gender),mean_cosine_distance,0.1226
+base_gemma,Embedding cosine (CrowS-Pairs gender),mean_cosine_similarity_raw,0.9776
+cda_only,Weave bias scorer,n_pairs,92.0
+cda_only,Weave bias scorer,n_generations,184.0
+cda_only,Weave bias scorer,mean_gender_bias_score,0.0905
+cda_only,Weave bias scorer,gender_bias_flag_rate,0.0652
+cda_only,Weave bias scorer,male_mean_gender_bias,0.0286
+cda_only,Weave bias scorer,female_mean_gender_bias,0.1523
+cda_only,Weave bias scorer,gender_bias_gap,0.1237
+cda_only,Weave bias scorer,gender_bias_gap_signed,-0.1237
+cda_only,Weave bias scorer,mean_racial_bias_score,0.0529
+cda_only,StereoSet (gender),stereotype_preference_rate,0.651
+cda_only,StereoSet (gender),stereotype_preference_rate_avg,0.6314
+cda_only,StereoSet (gender),lms_language_modeling_score,0.9843
+cda_only,StereoSet (gender),icat_score,0.6871
+cda_only,StereoSet (gender),score_gap_mean,1.6971
+cda_only,StereoSet (gender),score_gap_std,4.6721
+cda_only,StereoSet (gender),score_gap_avg_mean,0.1579
+cda_only,StereoSet (gender),score_gap_avg_std,0.451
+base_gemma,Regard,n_pairs,92.0
+base_gemma,Regard,n_scored_pairs,92.0
+base_gemma,Regard,regard_gap_negative,0.042
+base_gemma,Regard,regard_gap_negative_signed,-0.042
+debiased,StereoSet (gender),stereotype_preference_rate,0.6745
+debiased,StereoSet (gender),stereotype_preference_rate_avg,0.6549
+debiased,StereoSet (gender),lms_language_modeling_score,0.9882
+debiased,StereoSet (gender),icat_score,0.6433
+debiased,StereoSet (gender),score_gap_mean,1.724
+debiased,StereoSet (gender),score_gap_std,4.4741
+debiased,StereoSet (gender),score_gap_avg_mean,0.1657
+debiased,StereoSet (gender),score_gap_avg_std,0.4303
+base_gemma,StereoSet (gender),stereotype_preference_rate,0.6941
+base_gemma,StereoSet (gender),stereotype_preference_rate_avg,0.6863
+base_gemma,StereoSet (gender),lms_language_modeling_score,0.9686
+base_gemma,StereoSet (gender),icat_score,0.5926
+base_gemma,StereoSet (gender),score_gap_mean,2.452
+base_gemma,StereoSet (gender),score_gap_std,5.4838
+base_gemma,StereoSet (gender),score_gap_avg_mean,0.263
+base_gemma,StereoSet (gender),score_gap_avg_std,0.5824
+debiased,Embedding cosine (CrowS-Pairs gender),mean_cosine_similarity,0.9303
+debiased,Embedding cosine (CrowS-Pairs gender),std_cosine_similarity,0.0966
+debiased,Embedding cosine (CrowS-Pairs gender),mean_cosine_distance,0.0697
+debiased,Embedding cosine (CrowS-Pairs gender),mean_cosine_similarity_raw,0.99
+debiased,CrowS-Pairs (gender),stereotype_preference_rate,0.5687
+debiased,CrowS-Pairs (gender),stereotype_preference_rate_avg,0.5229
+debiased,CrowS-Pairs (gender),logprob_gap_mean,0.5797
+debiased,CrowS-Pairs (gender),logprob_gap_std,3.8812
+debiased,CrowS-Pairs (gender),logprob_gap_avg_mean,0.012
+debiased,CrowS-Pairs (gender),logprob_gap_avg_std,0.4599
+debiased,Regard,n_pairs,92.0
+debiased,Regard,n_scored_pairs,92.0
+debiased,Regard,regard_gap_negative,0.0304
+debiased,Regard,regard_gap_negative_signed,-0.0304

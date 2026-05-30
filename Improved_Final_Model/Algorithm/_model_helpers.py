@@ -105,7 +105,7 @@ def last_hidden(mdl, tok, text, max_length=None):
 
 
 @torch.no_grad()
-def generate(mdl, tok, prompt, max_new_tokens=40):
+def generate(mdl, tok, prompt, max_new_tokens=40, **generation_kwargs):
     """Greedy generation. Returns the full decoded string (prompt + continuation)."""
     enc = tok(prompt, return_tensors="pt", truncation=True, max_length=MAX_LENGTH).to(DEVICE)
     out = mdl.generate(
@@ -113,5 +113,6 @@ def generate(mdl, tok, prompt, max_new_tokens=40):
         max_new_tokens=max_new_tokens,
         do_sample=False,
         pad_token_id=tok.pad_token_id,
+        **generation_kwargs,
     )
     return tok.decode(out[0], skip_special_tokens=True)

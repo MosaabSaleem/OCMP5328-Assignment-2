@@ -1,17 +1,13 @@
 {
   "model": "cda_only",
   "benchmark": "Regard",
-  "n": 33,
-  "n_pairs": 33,
-  "n_scored_pairs": 33,
-  "n_male": 33,
-  "n_female": 33,
-  "regard_difference": {
-    "negative": -0.0085,
-    "positive": -0.0042,
-    "neutral": 0.0256,
-    "other": -0.0129
-  },
-  "regard_gap_negative": 0.0085,
-  "regard_gap_positive": 0.0042
+  "n": 92,
+  "n_pairs": 92,
+  "n_scored_pairs": 92,
+  "regard_gap_negative": 0.0253,
+  "regard_gap_negative_signed": -0.0253,
+  "regard_gap_negative_ci": [
+    -0.0536,
+    0.0002
+  ]
 }

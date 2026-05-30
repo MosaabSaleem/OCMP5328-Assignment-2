@@ -179,7 +179,7 @@ bias_metrics = [
     "stereotype_logprob_gap_avg",
     "avg_abs_gender_gap",
     "regard_gap_negative",
-    "regard_gap_positive",
+    "regard_gap_negative_signed",
 ]
 df_bias = df_all[df_all["metric"].isin(bias_metrics)].copy()
 if len(df_bias):
@@ -227,9 +227,20 @@ if len(df_util):
     if len(keys_present) == 1:
         axes = [axes]
     for ax, key in zip(axes, keys_present):
-        sub = df_util[df_util["metric"] == key]
-        ax.bar(sub["model"], sub["value"],
-               color=[COLORS.get(m, "#999") for m in sub["model"]])
+        sub = df_util[df_util["metric"] == key].set_index("model")
+        order = [m for m in MODELS_TO_EVAL if m in sub.index]
+        vals = [float(sub.loc[m, "value"]) for m in order]
+        # Attach bootstrap CIs where we have them (perplexity does); the WikiText-2
+        # CIs overlap across arms, which is the point of the utility check.
+        errs_lo, errs_hi = [], []
+        for m, v in zip(order, vals):
+            lo, hi = ci_lookup.get((m, "Utility", key), (None, None))
+            errs_lo.append(0 if lo is None else max(0, v - lo))
+            errs_hi.append(0 if hi is None else max(0, hi - v))
+        yerr = [errs_lo, errs_hi] if any(errs_lo) or any(errs_hi) else None
+        ax.bar(order, vals, color=[COLORS.get(m, "#999") for m in order],
+               yerr=yerr, capsize=4, ecolor="black")
+        ax.set_xticklabels(order, rotation=15, ha="right", fontsize=9)
         ax.set_title(key.replace("_", " "), fontsize=10)
         ax.set_ylabel("Value")
     plt.suptitle("Utility Metrics: Baseline vs Debiased",
@@ -248,7 +259,7 @@ for m in MODELS_TO_EVAL:
         with open(p) as f:
             regard_data[m] = json.load(f)
 if regard_data:
-    metrics = ["regard_gap_negative", "regard_gap_positive"]
+    metrics = ["regard_gap_negative", "regard_gap_negative_signed"]
     x = np.arange(len(metrics))
     models_order = [m for m in MODELS_TO_EVAL if m in regard_data]
     width = 0.8 / max(len(models_order), 1)
@@ -258,12 +269,71 @@ if regard_data:
         ax.bar(x + (i - (len(models_order) - 1) / 2) * width, vals,
                width=width, color=COLORS.get(m, "#999"), label=m)
     ax.set_xticks(x)
-    ax.set_xticklabels(["Negative regard gap", "Positive regard gap"])
+    ax.set_xticklabels(["Absolute negative gap", "Signed negative gap"])
+    ax.axhline(0, color="black", linewidth=1)
     ax.set_title("Regard Gender Gap", fontsize=12, fontweight="bold")
-    ax.set_ylabel("Absolute difference")
+    ax.set_ylabel("Difference")
     ax.legend(title="Model")
     plt.tight_layout()
     out = os.path.join(FIGURES_DIR, "regard_gender_gap.png")
+    plt.savefig(out, dpi=220); plt.close()
+    print(f"  Saved: {out}")
+
+
+# ── Plot 3b: Weave bias scorer (step 7b) — male vs female + gap ──────────────
+# The load-bearing generated-text result: how biased the classifier reads each
+# model's continuations, split by prompt gender, plus the male–female gap.
+biasscorer_data = {}
+for m in MODELS_TO_EVAL:
+    p = os.path.join(METRICS_DIR, f"{m}_biasscorer_summary.json")
+    if os.path.isfile(p):
+        with open(p) as f:
+            biasscorer_data[m] = json.load(f)
+if biasscorer_data:
+    models_order = [m for m in MODELS_TO_EVAL if m in biasscorer_data]
+    fig, (ax_mf, ax_gap) = plt.subplots(1, 2, figsize=(12, 4.5),
+                                        gridspec_kw={"width_ratios": [1.3, 1]})
+
+    # Left: male- vs female-prompted mean bias score, grouped per model.
+    x = np.arange(len(models_order)); width = 0.36
+    male = [biasscorer_data[m].get("male_mean_gender_bias", 0.0) for m in models_order]
+    fem  = [biasscorer_data[m].get("female_mean_gender_bias", 0.0) for m in models_order]
+    ax_mf.bar(x - width / 2, male, width, color="#5591c7", label="male-prompted")
+    ax_mf.bar(x + width / 2, fem,  width, color="#d6604d", label="female-prompted")
+    for xi, mv, fv in zip(x, male, fem):
+        ax_mf.annotate(f"{mv:.3f}", (xi - width / 2, mv), ha="center", va="bottom",
+                       xytext=(0, 2), textcoords="offset points", fontsize=8)
+        ax_mf.annotate(f"{fv:.3f}", (xi + width / 2, fv), ha="center", va="bottom",
+                       xytext=(0, 2), textcoords="offset points", fontsize=8)
+    ax_mf.set_xticks(x); ax_mf.set_xticklabels(models_order)
+    ax_mf.set_ylabel("mean P(text is gender-biased)")
+    ax_mf.set_title("Bias score by prompt gender (lower = less biased)", fontsize=10)
+    ax_mf.legend()
+
+    # Right: male–female gap magnitude with 95% bootstrap CI. The stored CI is
+    # on the signed gap (female − male, negative); mirror to positive magnitude.
+    gap_vals = [biasscorer_data[m].get("gender_bias_gap", 0.0) for m in models_order]
+    errs_lo, errs_hi = [], []
+    for m, v in zip(models_order, gap_vals):
+        ci = biasscorer_data[m].get("gender_bias_gap_ci")
+        if ci and None not in ci:
+            lo, hi = abs(ci[1]), abs(ci[0])  # mirror signed CI to magnitude
+            errs_lo.append(max(0, v - lo)); errs_hi.append(max(0, hi - v))
+        else:
+            errs_lo.append(0); errs_hi.append(0)
+    ax_gap.bar(x, gap_vals, color=[COLORS.get(m, "#999") for m in models_order],
+               yerr=[errs_lo, errs_hi], capsize=4, ecolor="black")
+    for xi, v in zip(x, gap_vals):
+        ax_gap.annotate(f"{v:.3f}", (xi, v), ha="center", va="bottom",
+                        xytext=(0, 12), textcoords="offset points", fontsize=8, fontweight="bold")
+    ax_gap.set_xticks(x); ax_gap.set_xticklabels(models_order)
+    ax_gap.set_title("Male–female gap (lower = fairer)", fontsize=10)
+    ax_gap.set_ylabel("|female − male| bias score")
+
+    plt.suptitle("Generated-text bias — Weave bias scorer (Step 7b, 95% bootstrap CI)",
+                 fontsize=12, fontweight="bold")
+    plt.tight_layout()
+    out = os.path.join(FIGURES_DIR, "biasscorer_gender_gap.png")
     plt.savefig(out, dpi=220); plt.close()
     print(f"  Saved: {out}")
 
@@ -285,21 +355,58 @@ elif os.path.isfile(trainer_state):
     losses = [(e["step"], e["loss"]) for e in state.get("log_history", []) if "loss" in e]
 if losses:
     steps, vals = zip(*losses)
-    fig, ax = plt.subplots(figsize=(8, 4))
-    ax.plot(steps, vals, color=COLORS["debiased"], linewidth=2)
-    # Overlay the LM-only and CLP components if the history JSON has them.
+
+    def ema(y, alpha=0.02):
+        """Exponential moving average so the per-step noise doesn't drown the
+        trend (raw per-step loss spans ~0–18; the signal is in the mean)."""
+        out, acc = [], y[0]
+        for v in y:
+            acc = alpha * v + (1 - alpha) * acc
+            out.append(acc)
+        return out
+
+    fig, ax = plt.subplots(figsize=(8.5, 4.4))
+    # Plot the LM losses (orig + counterfactual) and the total on the primary
+    # axis; the CLP term lives on a twin axis because at λ-weighted scale it is
+    # ~100x smaller than the LM losses and would otherwise be a flat line at 0.
     if os.path.isfile(history_json):
         with open(history_json) as f:
             hist = json.load(f)
-        lm_orig = [(i + 1, h.get("loss_lm_orig")) for i, h in enumerate(hist) if h.get("loss_lm_orig") is not None]
-        clp     = [(i + 1, h.get("loss_clp"))     for i, h in enumerate(hist) if h.get("loss_clp")     is not None]
+        lm_orig = [h.get("loss_lm_orig") for h in hist if h.get("loss_lm_orig") is not None]
+        lm_cf   = [h.get("loss_lm_cf")   for h in hist if h.get("loss_lm_cf")   is not None]
+        clp     = [h.get("loss_clp")     for h in hist if h.get("loss_clp")     is not None]
+        x = list(range(1, len(hist) + 1))
+        ax.plot(x, ema(vals),    color=COLORS["debiased"], lw=2.0, label="total loss")
         if lm_orig:
-            xs, ys = zip(*lm_orig); ax.plot(xs, ys, alpha=0.6, label="LM(orig)")
+            ax.plot(x[:len(lm_orig)], ema(lm_orig), color="#4c78a8", lw=1.6, label="LM loss (original)")
+        if lm_cf:
+            ax.plot(x[:len(lm_cf)], ema(lm_cf), color="#54a24b", lw=1.6, label="LM loss (counterfactual)")
+        ax.set_ylabel("LM / total loss")
+        ax.set_ylim(0, max(ema(vals)) * 1.1)
         if clp:
-            xs, ys = zip(*clp); ax.plot(xs, ys, alpha=0.6, label="CLP (raw)")
-        ax.legend()
-    ax.set_title("Debiased Model Training Loss", fontsize=12, fontweight="bold")
-    ax.set_xlabel("Step"); ax.set_ylabel("Loss")
+            ax2 = ax.twinx()
+            ax2.plot(x[:len(clp)], ema(clp), color="#c0392b", lw=1.8, label="CLP term (right axis)")
+            ax2.scatter([x[0], x[len(clp) - 1]], [clp[0], clp[-1]],
+                        color="#c0392b", zorder=5, s=24)
+            ax2.annotate(f"{clp[0]:.3f}", (x[0], clp[0]), xytext=(8, 4),
+                         textcoords="offset points", color="#c0392b", fontsize=9, fontweight="bold")
+            ax2.annotate(f"{clp[-1]:.3f}", (x[len(clp) - 1], clp[-1]), xytext=(-8, 10),
+                         textcoords="offset points", color="#c0392b", fontsize=9, fontweight="bold", ha="right")
+            ax2.set_ylabel("CLP loss", color="#c0392b")
+            ax2.tick_params(axis="y", labelcolor="#c0392b")
+            ax2.set_ylim(0, max(clp[0], max(ema(clp))) * 1.25)
+            ax2.grid(False)
+            lines = ax.get_lines() + ax2.get_lines()
+            ax.legend(lines, [l.get_label() for l in lines], fontsize=8.5, loc="upper right")
+        else:
+            ax.legend(fontsize=8.5)
+    else:
+        ax.plot(steps, ema(vals), color=COLORS["debiased"], linewidth=2, label="total loss")
+        ax.legend(fontsize=8.5)
+    ax.set_title("Proposed-arm training dynamics (EMA-smoothed)\n"
+                 "CLP term decays to ~0.017 — a small share of the gradient at λ=3",
+                 fontsize=11, fontweight="bold")
+    ax.set_xlabel("Step (2 epochs)")
     plt.tight_layout()
     out = os.path.join(FIGURES_DIR, "training_loss.png")
     plt.savefig(out, dpi=220); plt.close()
@@ -443,7 +550,7 @@ HEADLINE_METRICS = [
     ("StereoSet (gender)",                    "stereotype_preference_rate"),
     ("StereoSet (gender)",                    "icat_score"),
     ("Regard",                                "regard_gap_negative"),
-    ("Regard",                                "regard_gap_positive"),
+    ("Regard",                                "regard_gap_negative_signed"),
     ("Embedding cosine (CrowS-Pairs gender)", "mean_cosine_similarity"),
     ("Utility",                               "perplexity_wikitext2"),
 ]

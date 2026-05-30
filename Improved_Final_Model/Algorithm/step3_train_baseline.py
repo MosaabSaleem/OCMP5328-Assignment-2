@@ -1,9 +1,6 @@
 """
-Step 3 — Train LoRA baseline on original (non-augmented) Bias-in-Bios data.
-This is the model we compare against in all evaluations.
-LoRA freezes the base Gemma weights and trains small adapter matrices only,
-making fine-tuning feasible without a large GPU.
-Ref: Hu et al., 2022. https://doi.org/10.48550/arXiv.2106.09685
+Step 3 — Train LoRA baseline on original raw Bias-in-Bios data.
+LoRA freezes the base Gemma weights and trains small adapter matrices only
 """
 import sys, os, time, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -57,8 +54,6 @@ def tokenize(batch):
     return enc
 ds = ds.map(tokenize, batched=True, remove_columns=["text"])
 
-# Start the W&B run before Trainer init so Trainer's report_to="wandb"
-# reuses the active run instead of creating a second, anonymous one.
 wb_run = wandb_start(
     job_type="train",
     name="baseline_train",
@@ -73,9 +68,6 @@ wb_run = wandb_start(
     },
 )
 
-# Train — per-epoch checkpoints (save_total_limit=1) act as crash insurance:
-# if the next epoch dies we can resume; otherwise the final save_pretrained()
-# below leaves the canonical adapter at MODEL_DIR/baseline.
 args = TrainingArguments(
     output_dir=os.path.join(MODEL_DIR, "baseline"),
     num_train_epochs=EPOCHS,
@@ -95,7 +87,6 @@ Trainer(model=mdl, args=args, train_dataset=ds,
         data_collator=DataCollatorForLanguageModeling(tok, mlm=False)).train()
 elapsed = round(time.time() - t0, 2)
 
-# Save
 save_path = os.path.join(MODEL_DIR, "baseline")
 mdl.save_pretrained(save_path)
 tok.save_pretrained(save_path)

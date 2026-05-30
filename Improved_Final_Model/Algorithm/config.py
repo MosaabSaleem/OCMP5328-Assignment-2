@@ -73,7 +73,7 @@ MODEL_DIR   = os.path.join(RESULTS_DIR, "models")
 METRICS_DIR = os.path.join(RESULTS_DIR, "metrics")
 FIGURES_DIR = os.path.join(RESULTS_DIR, "figures")
 
-# ── Bias-in-Bios profession label mapping (De-Arteaga et al., 2019) ───────────
+# Bias-in-Bios profession label mapping
 PROFESSION_LABELS = {
     0: "accountant", 1: "architect", 2: "attorney", 3: "chiropractor",
     4: "comedian", 5: "composer", 6: "dentist", 7: "dietitian",

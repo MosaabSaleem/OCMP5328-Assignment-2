@@ -1,0 +1,21 @@
+{
+  "model": "cda_only",
+  "benchmark": "Weave bias scorer",
+  "n_pairs": 92,
+  "n_generations": 184,
+  "mean_gender_bias_score": 0.0905,
+  "mean_gender_bias_score_ci": [
+    0.0621,
+    0.1253
+  ],
+  "gender_bias_flag_rate": 0.0652,
+  "male_mean_gender_bias": 0.0286,
+  "female_mean_gender_bias": 0.1523,
+  "gender_bias_gap": 0.1237,
+  "gender_bias_gap_signed": -0.1237,
+  "gender_bias_gap_ci": [
+    -0.1721,
+    -0.0798
+  ],
+  "mean_racial_bias_score": 0.0529
+}

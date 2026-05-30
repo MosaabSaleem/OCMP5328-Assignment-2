@@ -1,17 +1,13 @@
 {
   "model": "base_gemma",
   "benchmark": "Regard",
-  "n": 33,
-  "n_pairs": 33,
-  "n_scored_pairs": 33,
-  "n_male": 33,
-  "n_female": 33,
-  "regard_difference": {
-    "negative": -0.0271,
-    "positive": -0.0149,
-    "neutral": 0.0202,
-    "other": 0.0218
-  },
-  "regard_gap_negative": 0.0271,
-  "regard_gap_positive": 0.0149
+  "n": 92,
+  "n_pairs": 92,
+  "n_scored_pairs": 92,
+  "regard_gap_negative": 0.042,
+  "regard_gap_negative_signed": -0.042,
+  "regard_gap_negative_ci": [
+    -0.093,
+    0.002
+  ]
 }

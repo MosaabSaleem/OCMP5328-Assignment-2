@@ -1,10 +1,8 @@
 """
-Step 2 — Counterfactual Data Augmentation (CDA).
+Step 2 — Counterfactual Data Augmentation (CDA)
 For every biography, create a gender-swapped counterfactual copy by replacing
-gendered pronouns and occupational nouns with their opposite-gender equivalent.
+gendered pronouns and occupational nouns with their opposite gender equivalent.
 Both the original and counterfactual are kept in training (two-sided CDA).
-Ref: Zhao et al., 2018. https://doi.org/10.18653/v1/N18-2003
-     Zmigrod et al., 2019. https://doi.org/10.18653/v1/P19-1161
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

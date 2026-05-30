@@ -1,10 +1,9 @@
 """
 Step 8 — Utility evaluation.
 Measures perplexity on WikiText-2 (language modelling quality does not degrade
-after debiasing), generation speed, and records training time.
-Required by assignment: utility metrics, average, standard deviation, training time.
+after debiasing), generation speed, and records training time
 """
-import sys, os, json, time
+import sys, os, json, time, gc, glob
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import METRICS_DIR, EVAL_SAMPLE_SIZE, MODELS_TO_EVAL
 from Algorithm._model_helpers import load_model, generate, resolve_model_path
@@ -14,7 +13,7 @@ from Algorithm._wandb_log import start as wandb_start, finish as wandb_finish
 import numpy as np
 import pandas as pd
 import torch
-from datasets import load_dataset
+from datasets import Dataset, config as datasets_config, load_dataset
 
 UTILITY_PROMPTS = [
     "The doctor examined the patient and",
@@ -26,16 +25,47 @@ UTILITY_PROMPTS = [
 ]
 
 
+def load_wikitext2_test():
+    """Load WikiText-2 test split, with a read-only-cache fallback."""
+    try:
+        return load_dataset("Salesforce/wikitext", "wikitext-2-raw-v1", split="test")
+    except Exception as exc:
+        cache_roots = [
+            os.environ.get("HF_DATASETS_CACHE"),
+            getattr(datasets_config, "HF_DATASETS_CACHE", None),
+        ]
+        seen = set()
+        for cache_root in cache_roots:
+            if not cache_root or cache_root in seen:
+                continue
+            seen.add(cache_root)
+            pattern = os.path.join(
+                cache_root,
+                "Salesforce___wikitext",
+                "wikitext-2-raw-v1",
+                "*",
+                "*",
+                "wikitext-test.arrow",
+            )
+            matches = sorted(glob.glob(pattern))
+            if matches:
+                print(f"[Step 8] load_dataset failed ({exc}); using cached Arrow file {matches[-1]}")
+                return Dataset.from_file(matches[-1])
+        raise
+
+
 def compute_perplexity(mdl, tok, n=50, max_length=128):
     """WikiText-2 perplexity. Lower = better language model quality."""
-    ds     = load_dataset("Salesforce/wikitext", "wikitext-2-raw-v1", split="test")
+    ds     = load_wikitext2_test()
     texts  = [t for t in ds["text"] if len(t.strip()) > 50][:n]
+    if not texts:
+        raise RuntimeError("No WikiText-2 samples available for perplexity evaluation")
     device = next(mdl.parameters()).device
     nlls   = []
     for text in texts:
         enc = tok(text, return_tensors="pt", truncation=True, max_length=max_length).to(device)
         with torch.no_grad():
-            nll = float(mdl(**enc, labels=enc["input_ids"]).loss)
+            nll = float(mdl(**enc, labels=enc["input_ids"], use_cache=False).loss)
         nlls.append(nll)
     nll_ci = bootstrap_ci(nlls)
     ppl_ci = (
@@ -47,6 +77,11 @@ def compute_perplexity(mdl, tok, n=50, max_length=128):
             round(float(np.std(nlls)),  4),
             nll_ci,
             ppl_ci)
+
+
+def sync_cuda():
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
 
 
 wb_run = wandb_start(
@@ -67,10 +102,16 @@ for model_name in MODELS_TO_EVAL:
     ppl, mean_nll, std_nll, nll_ci, ppl_ci = compute_perplexity(mdl, tok, n=EVAL_SAMPLE_SIZE)
 
     gen_times = []
+    # Warm up generation once per loaded model so the timed prompts do not
+    # include one-off CUDA/kernel/cache setup costs.
+    generate(mdl, tok, UTILITY_PROMPTS[0], max_new_tokens=5)
+    sync_cuda()
     for prompt in UTILITY_PROMPTS:
-        t0 = time.time()
+        sync_cuda()
+        t0 = time.perf_counter()
         generate(mdl, tok, prompt)
-        gen_times.append(time.time() - t0)
+        sync_cuda()
+        gen_times.append(time.perf_counter() - t0)
 
     # Pull training time from saved JSON
     train_json = os.path.join(METRICS_DIR, f"train_{model_name}.json")
@@ -111,6 +152,9 @@ for model_name in MODELS_TO_EVAL:
         })
 
     del mdl, tok
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     print(f"  PPL={ppl}  NLL mean={mean_nll} std={std_nll}  gen={summary['mean_generation_seconds']}s")
 
 if wb_run is not None and util_rows:

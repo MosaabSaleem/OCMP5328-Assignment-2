@@ -1,5 +1,5 @@
 """
-Step 4 — Train debiased model using CDA + Counterfactual Logit Pairing (CLP) with LoRA.
+Step 4 — Train debiased model using CDA + CLP with LoRA
 
 Proposed training objective:
     L = L_LM(x) + L_LM(x_cf) + lambda * L_CLP(x, x_cf)
@@ -8,52 +8,52 @@ Where:
     L_LM     = standard causal language modelling loss
     L_CLP    = symmetric KL divergence between original and counterfactual
                output logit distributions. Forces the model to give
-               gender-invariant predictions.
+               gender invariant predictions.
     lambda   = LAMBDA_CLP hyperparameter weighting the fairness penalty
-
-This builds on CDA (Zhao et al. 2018) with the CLP regularisation term
-(Garg et al. 2019). LoRA keeps fine-tuning efficient.
-Refs:
-  CDA    : Zhao et al., 2018. https://doi.org/10.18653/v1/N18-2003
-  CLP    : Garg et al., 2019. https://doi.org/10.1145/3306618.3317950
-  LoRA   : Hu et al., 2022.   https://doi.org/10.48550/arXiv.2106.09685
-
-Speed notes (T4 / Turing): fp32 weights + fp16 autocast (same stable recipe
-as step3b — Gemma fp16 weights produce nan grads), SDPA attention, dynamic
-padding via a collate_fn, pinned-memory dataloader. Two forward passes plus
-full-vocab CLP softmaxes mean we drop the per-device micro-batch to 4 with
-grad_accum=2 (effective batch 8, matching the other arms) so the CLP softmax
-intermediates fit in 16 GB.
 """
-import sys, os, time, json, glob
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Algorithm.config import (MODEL_NAME, DATA_DIR, MODEL_DIR, METRICS_DIR,
-                               EPOCHS, LR, MAX_LENGTH, LAMBDA_CLP,
-                               WARMUP_RATIO, LR_SCHEDULER,
-                               LORA_R, LORA_ALPHA, LORA_DROPOUT, HF_TOKEN)
 
+import glob
+import json
+import os
+import sys
+import time
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import pandas as pd
 import torch
 import torch.nn.functional as F
-import pandas as pd
-from torch.utils.data import Dataset, DataLoader
-from torch.optim import AdamW
-from transformers import AutoTokenizer, AutoModelForCausalLM, get_cosine_schedule_with_warmup
+from Algorithm._wandb_log import finish as wandb_finish
+from Algorithm._wandb_log import log_lora_artifact
+from Algorithm._wandb_log import start as wandb_start
+from Algorithm.config import (
+    DATA_DIR,
+    EPOCHS,
+    HF_TOKEN,
+    LAMBDA_CLP,
+    LORA_ALPHA,
+    LORA_DROPOUT,
+    LORA_R,
+    LR,
+    LR_SCHEDULER,
+    MAX_LENGTH,
+    METRICS_DIR,
+    MODEL_DIR,
+    MODEL_NAME,
+    WARMUP_RATIO,
+)
 from peft import LoraConfig, get_peft_model
-
-from Algorithm._wandb_log import (start as wandb_start,
-                                   finish as wandb_finish,
-                                   log_lora_artifact)
+from torch.optim import AdamW
+from torch.utils.data import DataLoader, Dataset
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    get_cosine_schedule_with_warmup,
+)
 
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Override config's BATCH_SIZE/GRAD_ACCUM locally: the two forward passes
-# plus full-vocab CLP softmaxes need much more activation memory than
-# step3b. At batch=4 the CLP softmax intermediates (~4×T×V fp32 tensors
-# from F.log_softmax, which autocast keeps in fp32 for stability) push
-# total usage over 16 GB. Batch=2 with grad_accum=4 + gradient checkpoint-
-# ing on the base model fits comfortably and keeps the effective batch at
-# 8 to match baseline + cda_only.
+# Override config's BATCH_SIZE/GRAD_ACCUM locally - see method notes
 BATCH_SIZE = 2
 GRAD_ACCUM = 4
 
@@ -61,10 +61,11 @@ GRAD_ACCUM = 4
 class CDAPairDataset(Dataset):
     """Loads (original, counterfactual) biography pairs for CLP training.
     Tokenises without padding; the collate_fn pads dynamically per-batch."""
+
     def __init__(self, df, tokenizer, max_length):
         self.orig = df["text"].astype(str).tolist()
-        self.cf   = df["text_cf"].astype(str).tolist()
-        self.tok  = tokenizer
+        self.cf = df["text_cf"].astype(str).tolist()
+        self.tok = tokenizer
         self.maxl = max_length
 
     def __len__(self):
@@ -74,16 +75,17 @@ class CDAPairDataset(Dataset):
         o = self.tok(self.orig[idx], truncation=True, max_length=self.maxl)
         c = self.tok(self.cf[idx], truncation=True, max_length=self.maxl)
         return {
-            "o_ids":  o["input_ids"],   "o_mask": o["attention_mask"],
-            "c_ids":  c["input_ids"],   "c_mask": c["attention_mask"],
+            "o_ids": o["input_ids"],
+            "o_mask": o["attention_mask"],
+            "c_ids": c["input_ids"],
+            "c_mask": c["attention_mask"],
         }
 
 
 def make_collate(pad_id):
-    """Pad o_ids/c_ids to the longest sequence in the batch (rounded to a
-    multiple of 8 for tensor-core alignment). Both o and c are padded to
-    the same length so positional indices align for the per-position CLP
-    mask `o_mask[:,1:] * c_mask[:,1:]`."""
+    """Pad o_ids/c_ids to the longest sequence in the batch. Both o and c are padded to
+    the same length so indices align for the CLP mask `o_mask[:,1:] * c_mask[:,1:]`."""
+
     def collate(batch):
         L = max(
             max(len(b["o_ids"]) for b in batch),
@@ -97,29 +99,26 @@ def make_collate(pad_id):
             )
 
         return {
-            "o_ids":  pad([b["o_ids"]  for b in batch], pad_id),
+            "o_ids": pad([b["o_ids"] for b in batch], pad_id),
             "o_mask": pad([b["o_mask"] for b in batch], 0),
-            "c_ids":  pad([b["c_ids"]  for b in batch], pad_id),
+            "c_ids": pad([b["c_ids"] for b in batch], pad_id),
             "c_mask": pad([b["c_mask"] for b in batch], 0),
         }
+
     return collate
 
 
 def compute_clp_loss(logits_o, logits_c, mask):
     """
-    Symmetric KL divergence between next-token distributions of the
+    Symmetric KL divergence between next token distributions of the
     original and counterfactual sentence pair, averaged over positions
-    where both sequences have real (non-pad) tokens.
+    where both sequences have real tokens.
 
         L_CLP = 0.5 * ( KL(p_o || p_c) + KL(p_c || p_o) )
 
     Uses log_softmax directly for numerical stability — softmax followed by
     clamp(1e-9).log() distorts ~75% of Gemma's 262k-vocab positions per row
-    by up to ~27 log units, which corrupts the gradient.
-
-    Caller is responsible for shifting/masking so that:
-      * logits_o[t] and logits_c[t] both predict the same target position,
-      * mask[t] = 1 only where that target position is a real token in both.
+    by up to 27 log units, which corrupts the gradient.
     """
     # F.log_softmax computes in fp32 internally even on fp16 input — safe to
     # call inside autocast. exp() back to fp16 can underflow extreme negative
@@ -129,32 +128,41 @@ def compute_clp_loss(logits_o, logits_c, mask):
     p_o, p_c = lp_o.exp(), lp_c.exp()
     kl_oc = (p_o * (lp_o - lp_c)).sum(dim=-1)
     kl_co = (p_c * (lp_c - lp_o)).sum(dim=-1)
-    skl   = 0.5 * (kl_oc + kl_co) * mask.float()
+    skl = 0.5 * (kl_oc + kl_co) * mask.float()
     return skl.sum() / mask.float().sum().clamp_min(1.0)
 
 
 print(f"[Step 4] Training DEBIASED model (CDA + CLP + LoRA)  lambda={LAMBDA_CLP}")
 
-df = pd.read_csv(os.path.join(DATA_DIR, "bias_in_bios_pairs.csv")).dropna(subset=["text","text_cf"])
+df = pd.read_csv(os.path.join(DATA_DIR, "bias_in_bios_pairs.csv")).dropna(
+    subset=["text", "text_cf"]
+)
 print(f"[Step 4] Training pairs: {len(df)}")
 
 tok = AutoTokenizer.from_pretrained(MODEL_NAME, token=HF_TOKEN)
 if tok.pad_token is None:
     tok.pad_token = tok.eos_token
 
-# fp32 weights + fp16 autocast (set up below) — Gemma overflows when its
+# fp32 weights + fp16 autocast - Gemma overflows when its
 # weights are stored in fp16, so we keep weights in fp32 and only let the
 # compute run in fp16 via torch.amp.autocast.
 mdl = AutoModelForCausalLM.from_pretrained(
-    MODEL_NAME, token=HF_TOKEN,
+    MODEL_NAME,
+    token=HF_TOKEN,
     attn_implementation="sdpa",
 )
 mdl.config.use_cache = False
-mdl = get_peft_model(mdl, LoraConfig(
-    r=LORA_R, lora_alpha=LORA_ALPHA, lora_dropout=LORA_DROPOUT,
-    bias="none", task_type="CAUSAL_LM",
-    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]
-))
+mdl = get_peft_model(
+    mdl,
+    LoraConfig(
+        r=LORA_R,
+        lora_alpha=LORA_ALPHA,
+        lora_dropout=LORA_DROPOUT,
+        bias="none",
+        task_type="CAUSAL_LM",
+        target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+    ),
+)
 # Required for PEFT under fp16 autocast — without this, gradients don't
 # reach the LoRA adapters because the base model is frozen.
 mdl.enable_input_require_grads()
@@ -162,7 +170,9 @@ mdl.enable_input_require_grads()
 # halved activation memory. We only enable it here (not in step3 / 3b)
 # because step4 needs to hold activations from TWO forward passes plus
 # fp32 CLP softmax intermediates simultaneously.
-mdl.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+mdl.gradient_checkpointing_enable(
+    gradient_checkpointing_kwargs={"use_reentrant": False}
+)
 mdl.to(DEVICE)
 mdl.print_trainable_parameters()
 mdl.train()
@@ -177,33 +187,40 @@ loader = DataLoader(
     collate_fn=make_collate(tok.pad_token_id),
     persistent_workers=True,
 )
-opt    = AdamW(mdl.parameters(), lr=LR, fused=True)
-total_steps   = (len(loader) * EPOCHS + GRAD_ACCUM - 1) // GRAD_ACCUM
-warmup_steps  = max(1, int(total_steps * WARMUP_RATIO))
+opt = AdamW(mdl.parameters(), lr=LR, fused=True)
+total_steps = (len(loader) * EPOCHS + GRAD_ACCUM - 1) // GRAD_ACCUM
+warmup_steps = max(1, int(total_steps * WARMUP_RATIO))
 scheduler = get_cosine_schedule_with_warmup(opt, warmup_steps, total_steps)
 scaler = torch.amp.GradScaler("cuda")
 history = []
-t0      = time.time()
+t0 = time.time()
 opt.zero_grad()
 
 wb_run = wandb_start(
     job_type="train",
     name="debiased_train",
     config={
-        "model": MODEL_NAME, "method": "debiased_lora_cda_clp",
-        "epochs": EPOCHS, "batch_size": BATCH_SIZE,
-        "grad_accum": GRAD_ACCUM, "lr": LR,
-        "max_length": MAX_LENGTH, "warmup_ratio": WARMUP_RATIO,
-        "lr_scheduler": LR_SCHEDULER, "lambda_clp": LAMBDA_CLP,
-        "lora_r": LORA_R, "lora_alpha": LORA_ALPHA,
+        "model": MODEL_NAME,
+        "method": "debiased_lora_cda_clp",
+        "epochs": EPOCHS,
+        "batch_size": BATCH_SIZE,
+        "grad_accum": GRAD_ACCUM,
+        "lr": LR,
+        "max_length": MAX_LENGTH,
+        "warmup_ratio": WARMUP_RATIO,
+        "lr_scheduler": LR_SCHEDULER,
+        "lambda_clp": LAMBDA_CLP,
+        "lora_r": LORA_R,
+        "lora_alpha": LORA_ALPHA,
         "train_rows": len(df),
-        "precision": "fp16-autocast", "attn_impl": "sdpa",
+        "precision": "fp16-autocast",
+        "attn_impl": "sdpa",
     },
 )
 
 save_path = os.path.join(MODEL_DIR, "debiased")
 
-LOG_EVERY = 10  # local print cadence; W&B logging matches it to keep run light
+LOG_EVERY = 10
 
 global_step = 0
 for epoch in range(EPOCHS):
@@ -215,18 +232,24 @@ for epoch in range(EPOCHS):
         c_labels[batch["c_mask"] == 0] = -100
 
         with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-            out_o = mdl(input_ids=batch["o_ids"], attention_mask=batch["o_mask"],
-                        labels=o_labels)
-            out_c = mdl(input_ids=batch["c_ids"], attention_mask=batch["c_mask"],
-                        labels=c_labels)
+            out_o = mdl(
+                input_ids=batch["o_ids"],
+                attention_mask=batch["o_mask"],
+                labels=o_labels,
+            )
+            out_c = mdl(
+                input_ids=batch["c_ids"],
+                attention_mask=batch["c_mask"],
+                labels=c_labels,
+            )
             # logits[t] predicts token at position t+1, so shift logits left
             # by one and the mask right by one. Mask = 1 only where the
             # target position is a real token in BOTH sequences.
             shift_o_logits = out_o.logits[:, :-1, :]
             shift_c_logits = out_c.logits[:, :-1, :]
-            shift_mask     = batch["o_mask"][:, 1:] * batch["c_mask"][:, 1:]
+            shift_mask = batch["o_mask"][:, 1:] * batch["c_mask"][:, 1:]
             l_clp = compute_clp_loss(shift_o_logits, shift_c_logits, shift_mask)
-            loss  = out_o.loss + out_c.loss + LAMBDA_CLP * l_clp
+            loss = out_o.loss + out_c.loss + LAMBDA_CLP * l_clp
             scaled_loss = loss / GRAD_ACCUM
 
         scaler.scale(scaled_loss).backward()
@@ -240,29 +263,30 @@ for epoch in range(EPOCHS):
             global_step += 1
 
         entry = {
-            "epoch": epoch + 1, "step": step + 1,
-            "loss_total":   round(float(loss),       4),
+            "epoch": epoch + 1,
+            "step": step + 1,
+            "loss_total": round(float(loss), 4),
             "loss_lm_orig": round(float(out_o.loss), 4),
-            "loss_lm_cf":   round(float(out_c.loss), 4),
-            "loss_clp":     round(float(l_clp),      4),
+            "loss_lm_cf": round(float(out_c.loss), 4),
+            "loss_clp": round(float(l_clp), 4),
         }
         history.append(entry)
 
         if (step + 1) % LOG_EVERY == 0:
             print(entry)
             if wb_run is not None:
-                wb_run.log({
-                    "train/loss_total":   entry["loss_total"],
-                    "train/loss_lm_orig": entry["loss_lm_orig"],
-                    "train/loss_lm_cf":   entry["loss_lm_cf"],
-                    "train/loss_clp":     entry["loss_clp"],
-                    "train/epoch":        epoch + 1,
-                    "train/global_step":  global_step,
-                })
+                wb_run.log(
+                    {
+                        "train/loss_total": entry["loss_total"],
+                        "train/loss_lm_orig": entry["loss_lm_orig"],
+                        "train/loss_lm_cf": entry["loss_lm_cf"],
+                        "train/loss_clp": entry["loss_clp"],
+                        "train/epoch": epoch + 1,
+                        "train/global_step": global_step,
+                    }
+                )
 
-    # End-of-epoch checkpoint — Trainer-based steps get this via
-    # save_strategy="epoch"; this custom loop has to do it explicitly.
-    # Overwrites the previous epoch's adapter so disk stays at ~6 MB.
+    # End-of-epoch checkpoint manually due to custom loop
     mdl.save_pretrained(save_path)
     tok.save_pretrained(save_path)
     print(f"[Step 4] Epoch {epoch + 1}/{EPOCHS} checkpoint saved to {save_path}")
@@ -272,33 +296,48 @@ mdl.save_pretrained(save_path)
 tok.save_pretrained(save_path)
 
 with open(os.path.join(METRICS_DIR, "train_debiased.json"), "w") as f:
-    json.dump({
-        "model": "debiased", "train_seconds": elapsed,
-        "train_rows": len(df), "epochs": EPOCHS,
-        "batch_size": BATCH_SIZE, "grad_accum": GRAD_ACCUM,
-        "lambda_clp": LAMBDA_CLP,
-        "final_step": history[-1] if history else {}
-    }, f, indent=2)
+    json.dump(
+        {
+            "model": "debiased",
+            "train_seconds": elapsed,
+            "train_rows": len(df),
+            "epochs": EPOCHS,
+            "batch_size": BATCH_SIZE,
+            "grad_accum": GRAD_ACCUM,
+            "lambda_clp": LAMBDA_CLP,
+            "final_step": history[-1] if history else {},
+        },
+        f,
+        indent=2,
+    )
 
-# Persist the full loss curve so step 9 can plot it. Trainer-based step 3
-# writes trainer_state.json automatically; this custom loop does not, so
-# we emit the history explicitly.
+# Persist the full loss curve, need to do explicitly in this custom loop
 with open(os.path.join(METRICS_DIR, "train_history_debiased.json"), "w") as f:
     json.dump(history, f, indent=2)
 if wb_run is not None:
     wb_run.summary["train_seconds"] = elapsed
     wb_run.summary["final_loss_total"] = history[-1]["loss_total"] if history else None
-    wb_run.summary["final_loss_clp"]   = history[-1]["loss_clp"]   if history else None
+    wb_run.summary["final_loss_clp"] = history[-1]["loss_clp"] if history else None
 log_lora_artifact(
-    wb_run, name="debiased_lora", save_path=save_path,
-    metadata={"base_model": MODEL_NAME, "method": "debiased_lora_cda_clp",
-              "train_seconds": elapsed, "train_rows": len(df),
-              "epochs": EPOCHS, "lr": LR, "max_length": MAX_LENGTH,
-              "lambda_clp": LAMBDA_CLP,
-              "lora_r": LORA_R, "lora_alpha": LORA_ALPHA,
-              "precision": "fp16-autocast", "attn_impl": "sdpa",
-              "final_loss_total": history[-1]["loss_total"] if history else None,
-              "final_loss_clp":   history[-1]["loss_clp"]   if history else None},
+    wb_run,
+    name="debiased_lora",
+    save_path=save_path,
+    metadata={
+        "base_model": MODEL_NAME,
+        "method": "debiased_lora_cda_clp",
+        "train_seconds": elapsed,
+        "train_rows": len(df),
+        "epochs": EPOCHS,
+        "lr": LR,
+        "max_length": MAX_LENGTH,
+        "lambda_clp": LAMBDA_CLP,
+        "lora_r": LORA_R,
+        "lora_alpha": LORA_ALPHA,
+        "precision": "fp16-autocast",
+        "attn_impl": "sdpa",
+        "final_loss_total": history[-1]["loss_total"] if history else None,
+        "final_loss_clp": history[-1]["loss_clp"] if history else None,
+    },
 )
 wandb_finish(wb_run)
 print(f"[Step 4] Done. Saved to {save_path}  ({elapsed}s)")

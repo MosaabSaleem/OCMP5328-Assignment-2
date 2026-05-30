@@ -1,17 +1,5 @@
 """
-Step 0 — Materialize the base_gemma evaluation reference + warm HF cache.
-
-Two jobs, both idempotent:
-
-1. Create results/models/base_gemma/ with model_reference.json + a local
-   copy of the tokenizer, so _model_helpers.load_model can treat the
-   untouched Gemma model with the same interface as the LoRA-adapted ones
-   (steps 4b-8 iterate over MODELS_TO_EVAL which includes 'base_gemma').
-
-2. Pre-warm the Hugging Face cache by downloading Gemma's full snapshot.
-   Without this, the first eval step that touches base_gemma pays the
-   ~2.5 GB download cost mid-pipeline. snapshot_download is a no-op if
-   the repo is already cached.
+Step 0 — Materialise the base_gemma evaluation reference + warm HF cache.
 """
 import sys, os, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -50,7 +38,6 @@ else:
     tok.save_pretrained(base_dir)
     print(f"[Step 0] Wrote model_reference.json and tokenizer files to {base_dir}")
 
-# Pre-warm the HuggingFace cache (no-op if already present).
 print(f"[Step 0] Warming HF cache for {MODEL_NAME} (no-op if cached)...")
 cache_path = snapshot_download(repo_id=MODEL_NAME, token=HF_TOKEN)
 print(f"[Step 0] HF cache ready at {cache_path}")

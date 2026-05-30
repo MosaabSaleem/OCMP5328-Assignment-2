@@ -1,14 +1,5 @@
 """
-Step 3b — Train LoRA on CDA-augmented data WITHOUT the CLP regulariser.
-This is the ablation arm that isolates the contribution of CDA from CLP:
-  baseline  : LoRA on raw Bias-in-Bios               (no CDA, no CLP)
-  cda_only  : LoRA on CDA-augmented Bias-in-Bios     (CDA only)
-  debiased  : LoRA on CDA pairs + CLP penalty        (CDA + CLP)
-Concretely, we train on the original biographies and their gender-swapped
-counterfactuals concatenated as plain LM examples — same trainer, same
-effective batch size as step 3, but with fp16 + SDPA + dynamic padding to
-make full use of the T4 (the step 3 baseline used static fp32 padding and
-ran at ~2 samples/sec — this config is ~3-5× faster).
+Step 3b — Train LoRA on CDA augmented data without the CLP regulariser.
 """
 import sys, os, time, json, glob
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -47,13 +38,6 @@ tok = AutoTokenizer.from_pretrained(MODEL_NAME, token=HF_TOKEN)
 if tok.pad_token is None:
     tok.pad_token = tok.eos_token
 
-# Load base weights in fp32 and use fp16 *autocast* for compute
-# (set via TrainingArguments fp16=True below). Gemma was trained in bf16
-# and its RMSNorm + attention scores overflow when the weights themselves
-# are stored in fp16, producing nan gradients from the first step. fp32
-# weights + fp16 autocast is the stable recipe on T4: weights stay
-# numerically safe, compute still uses Turing fp16 tensor cores.
-# T4 has no bf16 tensor cores so bf16 is not a useful alternative here.
 mdl = AutoModelForCausalLM.from_pretrained(
     MODEL_NAME, token=HF_TOKEN,
     attn_implementation="sdpa",
@@ -66,16 +50,12 @@ lora_cfg = LoraConfig(
     target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]
 )
 mdl = get_peft_model(mdl, lora_cfg)
-# PEFT freezes the base model, but fp16 autocast still needs the inputs
-# to have requires_grad set so gradient flow reaches the LoRA adapters.
 mdl.enable_input_require_grads()
 mdl.print_trainable_parameters()
 
 ds = Dataset.from_dict({"text": texts})
 def tokenize(batch):
-    # No padding here — the collator pads to the longest sequence in the
-    # batch (rounded up to a multiple of 8 for tensor-core alignment).
-    # Labels are produced by DataCollatorForLanguageModeling(mlm=False).
+    # No padding here — the collator pads to the longest sequence
     return tok(batch["text"], truncation=True, max_length=MAX_LENGTH)
 ds = ds.map(tokenize, batched=True, remove_columns=["text"])
 save_path = os.path.join(MODEL_DIR, "cda_only")
@@ -116,8 +96,7 @@ args = TrainingArguments(
     remove_unused_columns=False,
 )
 
-# Auto-resume from the latest local checkpoint if one exists. Safe to leave
-# on for fresh runs too — it's a no-op when output_dir has no checkpoints.
+# Auto-resume from the latest local checkpoint if one exists.
 resume = bool(glob.glob(os.path.join(save_path, "checkpoint-*")))
 if resume:
     print(f"[Step 3b] Found existing checkpoint in {save_path}; resuming.")

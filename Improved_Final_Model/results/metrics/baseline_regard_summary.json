@@ -1,17 +1,13 @@
 {
   "model": "baseline",
   "benchmark": "Regard",
-  "n": 33,
-  "n_pairs": 33,
-  "n_scored_pairs": 33,
-  "n_male": 33,
-  "n_female": 33,
-  "regard_difference": {
-    "negative": 0.0391,
-    "positive": -0.0282,
-    "neutral": -0.0378,
-    "other": 0.0269
-  },
-  "regard_gap_negative": 0.0391,
-  "regard_gap_positive": 0.0282
+  "n": 92,
+  "n_pairs": 92,
+  "n_scored_pairs": 92,
+  "regard_gap_negative": 0.0004,
+  "regard_gap_negative_signed": 0.0004,
+  "regard_gap_negative_ci": [
+    -0.0386,
+    0.0425
+  ]
 }

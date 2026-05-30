@@ -59,7 +59,7 @@ OBJECT_HER_FOLLOWERS = {
 
 
 def preserve_case(source: str, replacement: str) -> str:
-    """Match the capitalization pattern of a replaced token."""
+    """Match the capitalisation pattern of a replaced token."""
     if source.isupper():
         return replacement.upper()
     if source[:1].isupper():
@@ -70,9 +70,7 @@ def preserve_case(source: str, replacement: str) -> str:
 def gender_swap(text: str) -> str:
     """
     Swap gendered terms in one pass over the original tokens so chains like
-    he->she->he do not occur. Handles common possessive/object pronoun cases:
-      his book -> her book, the book is his -> the book is hers
-      her book -> his book, spoke to her -> spoke to him
+    he->she->he do not occur. Handles common possessive/object pronoun cases
     """
     original = str(text)
     tokens = list(re.finditer(r"\b[A-Za-z]+\b", original))
