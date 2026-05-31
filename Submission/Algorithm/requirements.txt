@@ -1,0 +1,23 @@
+# Core dependencies, pinned to the tested versions.
+# torch has no +cuXXX tag here; install the build matching your CUDA version
+# (see README) — e.g. the cu124 wheel for an NVIDIA T4.
+
+torch==2.6.0
+transformers==5.9.0
+peft==0.19.1
+accelerate==1.13.0
+datasets==4.8.5
+evaluate==0.4.6
+huggingface-hub==1.16.1
+sentencepiece==0.2.1
+numpy==2.4.6
+pandas==3.0.3
+matplotlib==3.10.9
+seaborn==0.13.2
+tqdm==4.67.3
+requests==2.34.2
+
+# Optional — only for W&B logging (set WANDB_PROJECT) or the supplementary
+# scorer step (Algorithm/step7b_eval_bias_scorer.py).
+# wandb==0.27.0
+# weave==0.52.41
