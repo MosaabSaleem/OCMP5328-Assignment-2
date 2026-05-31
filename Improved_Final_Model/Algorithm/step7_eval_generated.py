@@ -25,12 +25,12 @@ FEMALE_WORDS = {
     "mother", "wife", "daughter", "sister", "girl", "girls"
 }
 
-
+# Helper to count gendered terms in a given text based on predefined sets of male and female words
 def count_gender(text):
     words = set(re.findall(r"\b\w+\b", text.lower()))
     return len(words & MALE_WORDS), len(words & FEMALE_WORDS)
 
-
+# Evaluate a model on WinoBias by comparing log-probabilities of the stereotype vs anti-stereotype sentences, and compute summary statistics
 def eval_winobias(mdl, tok, n):
     print(f" [WinoBias] evaluating {n} examples...")
     rows = []
@@ -74,7 +74,7 @@ def eval_winobias(mdl, tok, n):
     }
     return df, summary
 
-
+# Evaluate a model on BOLD by generating continuations from prompts and counting gendered terms in the generated text, then compute summary statistics
 def eval_bold(mdl, tok, n):
     print(f" [BOLD] generating for {n} prompts...")
     try:
@@ -117,7 +117,7 @@ def eval_bold(mdl, tok, n):
     }
     return df, summary
 
-
+# Main loop for both baseline and debiased models, saving results and summary statistics for WinoBias and BOLD benchmarks
 for model_name in ["baseline", "debiased"]:
     print(f"\n[Step 7] Generated-text eval — {model_name}")
     mdl, tok = load_model(os.path.join(MODEL_DIR, model_name))

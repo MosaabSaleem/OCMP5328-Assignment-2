@@ -14,6 +14,7 @@ import pandas as pd
 
 print(f"[Step 1] Downloading Bias-in-Bios sample={SAMPLE_SIZE} seed={SEED}")
 
+#use the load dataset method to download the data, then convert to pandas and save as csv for the rest of the pipeline
 ds = load_dataset("LabHC/bias_in_bios", split="train")
 ds = ds.shuffle(seed=SEED)
 if SAMPLE_SIZE < len(ds):
@@ -21,18 +22,19 @@ if SAMPLE_SIZE < len(ds):
 
 cols = ds.column_names
 
-
+#Helper to pick the most likely column from a list of candidates, or default to the first column if none found
 def pick_col(candidates):
     for c in candidates:
         if c in cols:
             return c
     return None
 
-
+#The dataset has some variation in column names across versions, so we use the helper to pick the most likely one
 text_col = pick_col(["hard_text", "text", "bio", "biography"]) or cols[0]
 label_col = pick_col(["profession", "title", "label", "p"])
 gender_col = pick_col(["gender", "g"])
 
+#Convert to pandas and save
 df = pd.DataFrame(
     {
         "text": [str(x) for x in ds[text_col]],

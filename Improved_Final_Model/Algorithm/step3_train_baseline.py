@@ -11,6 +11,7 @@ import json
 
 from huggingface_hub import login
 
+#Please add your token here again like in _model_helpers.py. It only worked for me when added to both files
 login("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")
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -42,9 +43,11 @@ from peft import LoraConfig, get_peft_model
 
 print("[Step 3] Training BASELINE model with LoRA on original data...")
 
+#Load the original data (not the CDA pairs) and prepare for training
 df = pd.read_csv(os.path.join(DATA_DIR, "bias_in_bios.csv")).dropna(subset=["text"])
 print(f"[Step 3] Training rows: {len(df)}")
 
+#Load the base model and tokenizer, and prepare LoRA configuration
 tok = AutoTokenizer.from_pretrained(MODEL_NAME)
 if tok.pad_token is None:
     tok.pad_token = tok.eos_token
@@ -64,7 +67,7 @@ mdl.print_trainable_parameters()
 
 ds = Dataset.from_dict({"text": df["text"].astype(str).tolist()})
 
-
+#Tokenize the dataset with labels for language modeling (labels are just the input ids)
 def tokenize(batch):
     enc = tok(
         batch["text"],
@@ -77,7 +80,7 @@ def tokenize(batch):
 
 
 ds = ds.map(tokenize, batched=True, remove_columns=["text"])
-
+#Set up training arguments for the Trainer
 args = TrainingArguments(
     output_dir=os.path.join(MODEL_DIR, "baseline"),
     num_train_epochs=EPOCHS,
@@ -90,7 +93,7 @@ args = TrainingArguments(
     remove_unused_columns=False,
     dataloader_pin_memory=False,
 )
-
+#Use the Trainer API to train the model, and time the training duration
 t0 = time.time()
 trainer = Trainer(
     model=mdl,
@@ -104,7 +107,7 @@ elapsed = round(time.time() - t0, 2)
 save_path = os.path.join(MODEL_DIR, "baseline")
 mdl.save_pretrained(save_path)
 tok.save_pretrained(save_path)
-
+#Save training metrics to a json file for later analysis
 with open(os.path.join(METRICS_DIR, "train_baseline.json"), "w") as f:
     json.dump(
         {

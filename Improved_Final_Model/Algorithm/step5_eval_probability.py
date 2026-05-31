@@ -22,7 +22,7 @@ CROWS_URLS = [
     "https://huggingface.co/datasets/nyu-mll/crows_pairs/resolve/main/data/crows_pairs_anonymized.csv",
 ]
 
-
+# Helper to load CrowS-Pairs CSV from multiple potential sources with error handling
 def load_crows_pairs_csv():
     last_err = None
     for url in CROWS_URLS:
@@ -37,7 +37,7 @@ def load_crows_pairs_csv():
             print("Failed:", url, "|", e)
     raise RuntimeError(f"Could not load CrowS-Pairs CSV: {last_err}")
 
-
+# Evaluate a model on CrowS-Pairs by comparing log-probabilities of the stereotypical vs less stereotypical sentences, and compute summary statistics
 def eval_crowspairs(mdl, tok, n):
     print(f" [CrowS-Pairs] evaluating {n} examples...")
     df_src = load_crows_pairs_csv()
@@ -75,7 +75,7 @@ def eval_crowspairs(mdl, tok, n):
     }
     return df, summary
 
-
+# Evaluate a model on StereoSet by comparing log-probabilities of the stereotypical vs anti-stereotypical sentences
 def eval_stereoset(mdl, tok, n):
     print(f" [StereoSet] evaluating {n} examples...")
     try:
@@ -133,7 +133,7 @@ def eval_stereoset(mdl, tok, n):
     }
     return df, summary
 
-
+# Main evaluation loop for both baseline and debiased models, saving detailed results and summary statistics for CrowS-Pairs and StereoSet benchmarks
 for model_name in ["baseline", "debiased"]:
     print(f"\n[Step 5] Probability eval — {model_name}")
     mdl, tok = load_model(os.path.join(MODEL_DIR, model_name))

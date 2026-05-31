@@ -40,7 +40,7 @@ def run_step(step_path):
         raise RuntimeError(f"Step failed: {step_path}")
 
 def main():
-    print("Starting full bias-mitigation pipeline...")
+    print("Starting pipeline...")
     print(f"Project root: {ROOT}")
     for step in STEPS:
         run_step(step)

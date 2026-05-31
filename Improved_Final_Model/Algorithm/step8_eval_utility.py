@@ -25,7 +25,7 @@ UTILITY_PROMPTS = [
     "The software developer wrote code that",
 ]
 
-
+# Compute perplexity on WikiText-2 test set, and measure generation speed for a set of prompts, for a given model
 def compute_perplexity(mdl, tok, n=50, max_length=128):
     ds = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
     texts = [t for t in ds["text"] if len(t.strip()) > 50][:n]
@@ -44,7 +44,7 @@ def compute_perplexity(mdl, tok, n=50, max_length=128):
         "std_nll_loss": float(np.std(nlls)),
     }
 
-
+# Measure generation speed for a set of prompts, for a given model
 def compute_generation_speed(mdl, tok):
     gen_times = []
     for prompt in UTILITY_PROMPTS:
@@ -57,7 +57,7 @@ def compute_generation_speed(mdl, tok):
         "std_generation_seconds": float(np.std(gen_times)),
     }
 
-
+# Main loop for both baseline and debiased models, saving results and summary statistics for WikiText-2 perplexity and generation speed benchmarks
 for model_name in ["baseline", "debiased"]:
     print(f"\n[Step 8] Utility eval — {model_name}")
     mdl, tok = load_model(os.path.join(MODEL_DIR, model_name))

@@ -15,18 +15,22 @@ import numpy as np
 import pandas as pd
 from tqdm.auto import tqdm
 
+
 pairs_path = os.path.join(DATA_DIR, "bias_in_bios_pairs.csv")
+#Load the dataset of original/counterfactual biography pairs for evaluation, and limit to EVAL_SIZE if specified
 df_pairs = (
     pd.read_csv(pairs_path)
     .dropna(subset=["text", "text_cf"])
     .head(EVAL_SIZE)
 )
 
+# Main evaluation loop for both baseline and debiased models, saving detailed results and summary statistics for the embedding-based bias evaluation benchmark
 for model_name in ["baseline", "debiased"]:
     print(f"\n[Step 6] Embedding eval — {model_name} ({len(df_pairs)} pairs)")
     mdl, tok = load_model(os.path.join(MODEL_DIR, model_name))
 
     rows = []
+    # For each original/counterfactual pair, extract the last hidden-state embeddings and compute cosine similarity and distance
     for _, r in tqdm(df_pairs.iterrows(), total=len(df_pairs), desc="Embedding"):
         v1 = last_hidden(mdl, tok, r["text"])
         v2 = last_hidden(mdl, tok, r["text_cf"])

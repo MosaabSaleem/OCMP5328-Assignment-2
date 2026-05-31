@@ -12,7 +12,7 @@ from Algorithm.config import DATA_DIR
 
 import pandas as pd
 
-
+#Helper to normalize and knowingly swap common gendered terms. This is not exhaustive but should cover most cases in the dataset.
 def normalize_swap(text):
     t = str(text)
     swaps = {
@@ -35,16 +35,18 @@ def normalize_swap(text):
         t = re.sub(pat, rep, t, flags=re.I)
     return " ".join(t.split())
 
-
+#Load the original data, create counterfactuals, and save the new pairs dataset
 in_path = os.path.join(DATA_DIR, "bias_in_bios.csv")
 out_path = os.path.join(DATA_DIR, "bias_in_bios_pairs.csv")
 
 print("[Step 2] Building CDA pairs...")
 df = pd.read_csv(in_path).dropna(subset=["text"]).copy()
 
+#Apply the normalize_swap function to create counterfactual texts, and track which rows had any changes
 df["text_cf"] = df["text"].apply(normalize_swap)
 df["swap_changed"] = (df["text"] != df["text_cf"]).astype(int)
 
+#Keep only rows where a swap was made, and save the new dataset with original and counterfactual pairs
 df.to_csv(out_path, index=False)
 
 print(f"[Step 2] Saved pairs -> {out_path}")

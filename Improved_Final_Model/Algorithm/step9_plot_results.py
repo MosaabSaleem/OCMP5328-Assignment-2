@@ -18,6 +18,7 @@ import seaborn as sns
 sns.set_theme(style="whitegrid", palette="Set2")
 COLORS = {"baseline": "#5591c7", "debiased": "#6daa45"}
 
+# Collect all summary metric JSON files into a single DataFrame for easier plotting and comparison
 rows = []
 for fpath in glob.glob(os.path.join(METRICS_DIR, "*_summary.json")):
     with open(fpath) as f:
@@ -32,6 +33,7 @@ df_all = pd.DataFrame(rows)
 df_all.to_csv(os.path.join(METRICS_DIR, "all_results_table.csv"), index=False)
 print(f"[Step 9] Collected {len(df_all)} metric values")
 
+
 bias_metrics = [
     "stereotype_preference_rate",
     "score_gap_mean",
@@ -40,6 +42,7 @@ bias_metrics = [
     "avg_abs_gender_gap",
 ]
 df_bias = df_all[df_all["metric"].isin(bias_metrics)].copy()
+# Plot a grouped bar chart comparing bias metrics between baseline and debiased models, saving the figure to the figures directory
 if len(df_bias):
     fig, ax = plt.subplots(figsize=(12, 5))
     sns.barplot(data=df_bias, x="metric", y="value", hue="model", palette=COLORS, ax=ax)
@@ -54,6 +57,7 @@ if len(df_bias):
     plt.close()
     print(f" Saved: {out}")
 
+# Plot a grouped bar chart comparing utility metrics between baseline and debiased models, saving the figure to the figures directory
 util_keys = ["perplexity_wikitext2", "mean_generation_seconds", "train_seconds"]
 df_util = df_all[df_all["metric"].isin(util_keys)].copy()
 if len(df_util):
@@ -73,6 +77,7 @@ if len(df_util):
     plt.close()
     print(f" Saved: {out}")
 
+# Load BOLD evaluation results for both models, plot histograms
 bold_data = {}
 for m in ["baseline", "debiased"]:
     p = os.path.join(METRICS_DIR, f"{m}_bold.csv")
@@ -101,6 +106,7 @@ if bold_data:
     plt.close()
     print(f" Saved: {out}")
 
+# If available, load the training loss history for the debiased model and plot the training loss curve, saving the figure to the figures directory
 hist_path = os.path.join(METRICS_DIR, "debiased_training_history.csv")
 if os.path.isfile(hist_path):
     hist_df = pd.read_csv(hist_path)

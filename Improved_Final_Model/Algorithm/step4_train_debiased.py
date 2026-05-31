@@ -37,10 +37,8 @@ from peft import LoraConfig, get_peft_model
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-
+#Load the debiasing model and tokenizer, and prepare the dataset of CDA pairs for training
 class CDAPairDataset(Dataset):
-    """Loads (original, counterfactual) biography pairs for CLP training."""
-
     def __init__(self, df, tokenizer, max_length):
         self.orig = df["text"].astype(str).tolist()
         self.cf = df["text_cf"].astype(str).tolist()
@@ -69,7 +67,7 @@ class CDAPairDataset(Dataset):
             "c_mask": c["attention_mask"].squeeze(0),
         }
 
-
+# Compute the Counterfactual Logit Pairing (CLP) loss between original and counterfactual logits
 def compute_clp_loss(logits_o, logits_c, mask):
     p_o = F.softmax(logits_o, dim=-1).clamp(min=1e-9)
     p_c = F.softmax(logits_c, dim=-1).clamp(min=1e-9)
@@ -81,6 +79,7 @@ def compute_clp_loss(logits_o, logits_c, mask):
 
 print(f"[Step 4] Training DEBIASED model (CDA + CLP + LoRA) lambda={LAMBDA_CLP}")
 
+#Load the base model and tokenizer, and prepare LoRA configuration for the debiased model
 df = pd.read_csv(os.path.join(DATA_DIR, "bias_in_bios_pairs.csv")).dropna(subset=["text", "text_cf"])
 print(f"[Step 4] Training pairs: {len(df)}")
 
@@ -103,13 +102,13 @@ mdl = get_peft_model(
 mdl.train()
 mdl.to(DEVICE)
 mdl.print_trainable_parameters()
-
+#Set up the DataLoader for the CDA pairs, and the optimizer for training the debiased model
 loader = DataLoader(CDAPairDataset(df, tok, MAX_LENGTH), batch_size=BATCH_SIZE, shuffle=True)
 opt = AdamW(mdl.parameters(), lr=LR)
 
 history = []
 t0 = time.time()
-
+#Main training loop over epochs and batches, computing the combined loss of language modeling and CLP, and updating the model parameters
 for epoch in range(EPOCHS):
     for step, batch in enumerate(tqdm(loader, desc=f"Epoch {epoch + 1}")):
         batch = {k: v.to(DEVICE) for k, v in batch.items()}
@@ -144,14 +143,14 @@ for epoch in range(EPOCHS):
         )
 
 elapsed = round(time.time() - t0, 2)
-
+#Save the debiased model and tokenizer
 save_path = os.path.join(MODEL_DIR, "debiased")
 mdl.save_pretrained(save_path)
 tok.save_pretrained(save_path)
 
 hist_df = pd.DataFrame(history)
 hist_df.to_csv(os.path.join(METRICS_DIR, "debiased_training_history.csv"), index=False)
-
+#Save training metrics to a json file for later analysis
 with open(os.path.join(METRICS_DIR, "train_debiased.json"), "w") as f:
     json.dump(
         {
