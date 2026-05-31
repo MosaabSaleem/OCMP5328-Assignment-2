@@ -1,0 +1,13 @@
+{
+  "model": "baseline",
+  "benchmark": "Regard",
+  "n": 92,
+  "n_pairs": 92,
+  "n_scored_pairs": 92,
+  "regard_gap_negative": 0.0004,
+  "regard_gap_negative_signed": 0.0004,
+  "regard_gap_negative_ci": [
+    -0.0386,
+    0.0425
+  ]
+}

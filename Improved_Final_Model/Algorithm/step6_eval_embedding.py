@@ -1,64 +1,141 @@
 """
-Step 6 — Embedding-based bias evaluation.
-Extracts the last hidden-state embeddings for each original/counterfactual
-biography pair and computes cosine similarity between them.
+Step 6 — Embedding based bias evaluation
+
+For each CrowS-Pairs gender pair (stereotype, anti-stereotype), we mean pool
+the models last hidden state and compute the cosine similarity between the
+2 sentence embeddings.
+
+Centering to combat ansiotropy effect: cos_centered(v1, v2) = cos(v1 - mu, v2 - mu)
 """
-import sys
-import os
+
 import json
+import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Algorithm.config import DATA_DIR, MODEL_DIR, METRICS_DIR, EVAL_SIZE
-from Algorithm._model_helpers import load_model, last_hidden
-
 import numpy as np
 import pandas as pd
-from tqdm.auto import tqdm
+from Algorithm._dataset_loaders import load_crowspairs
+from Algorithm._model_helpers import last_hidden, load_model, resolve_model_path
+from Algorithm._stats import bootstrap_ci
+from Algorithm._wandb_log import finish as wandb_finish
+from Algorithm._wandb_log import start as wandb_start
+from Algorithm.config import EVAL_SAMPLE_SIZE, METRICS_DIR, MODELS_TO_EVAL
+
+BIAS_TYPE = "gender"
 
 
-pairs_path = os.path.join(DATA_DIR, "bias_in_bios_pairs.csv")
-#Load the dataset of original/counterfactual biography pairs for evaluation, and limit to EVAL_SIZE if specified
-df_pairs = (
-    pd.read_csv(pairs_path)
-    .dropna(subset=["text", "text_cf"])
-    .head(EVAL_SIZE)
+def cosine(v1, v2):
+    return float(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-12))
+
+
+# Held-out CrowS-Pairs gender examples (not used for CDA training).
+df_pairs = pd.DataFrame(load_crowspairs(EVAL_SAMPLE_SIZE, bias_type=BIAS_TYPE)).dropna(
+    subset=["sent_more", "sent_less"]
 )
 
-# Main evaluation loop for both baseline and debiased models, saving detailed results and summary statistics for the embedding-based bias evaluation benchmark
-for model_name in ["baseline", "debiased"]:
-    print(f"\n[Step 6] Embedding eval — {model_name} ({len(df_pairs)} pairs)")
-    mdl, tok = load_model(os.path.join(MODEL_DIR, model_name))
+wb_run = wandb_start(
+    job_type="eval",
+    name="embedding_cosine",
+    config={
+        "benchmark": "CrowS-Pairs (gender) embedding cosine",
+        "bias_type": BIAS_TYPE,
+        "n_pairs": int(len(df_pairs)),
+        "anisotropy_correction": "mean-centered per model",
+    },
+)
+all_pairs = []
+
+for model_name in MODELS_TO_EVAL:
+    print(f"\n[Step 6] Embedding eval — {model_name}  ({len(df_pairs)} pairs)")
+    mdl, tok = load_model(resolve_model_path(model_name))
+
+    # Pass 1: collect all sentence embeddings so we can compute the
+    # per-model mean and subtract it before scoring.
+    embeds_more, embeds_less = [], []
+    for _, r in df_pairs.iterrows():
+        embeds_more.append(last_hidden(mdl, tok, r["sent_more"]))
+        embeds_less.append(last_hidden(mdl, tok, r["sent_less"]))
+    embeds_more = np.stack(embeds_more)
+    embeds_less = np.stack(embeds_less)
+    mu = np.concatenate([embeds_more, embeds_less], axis=0).mean(axis=0)
 
     rows = []
-    # For each original/counterfactual pair, extract the last hidden-state embeddings and compute cosine similarity and distance
-    for _, r in tqdm(df_pairs.iterrows(), total=len(df_pairs), desc="Embedding"):
-        v1 = last_hidden(mdl, tok, r["text"])
-        v2 = last_hidden(mdl, tok, r["text_cf"])
-        cos = float(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-12))
+    for i, (_, r) in enumerate(df_pairs.iterrows()):
+        v1, v2 = embeds_more[i], embeds_less[i]
+        v1c, v2c = v1 - mu, v2 - mu
+        cos_raw = cosine(v1, v2)
+        cos_centered = cosine(v1c, v2c)
         rows.append(
             {
-                "cosine_similarity": cos,
-                "cosine_distance": 1.0 - cos,
+                "sent_more": r["sent_more"],
+                "sent_less": r["sent_less"],
+                "bias_type": r.get("bias_type", BIAS_TYPE),
+                # Headline metric is centered (anisotropy-corrected).
+                "cosine_similarity": round(cos_centered, 6),
+                "cosine_distance": round(1.0 - cos_centered, 6),
+                # Raw is reported alongside so the cone-effect symptom is visible.
+                "cosine_similarity_raw": round(cos_raw, 6),
+                "cosine_distance_raw": round(1.0 - cos_raw, 6),
             }
         )
 
     df_out = pd.DataFrame(rows)
     df_out.to_csv(os.path.join(METRICS_DIR, f"{model_name}_embedding.csv"), index=False)
 
+    sim_ci = bootstrap_ci(df_out["cosine_similarity"]) if len(df_out) else {}
+    dist_ci = bootstrap_ci(df_out["cosine_distance"]) if len(df_out) else {}
+    sim_raw_ci = bootstrap_ci(df_out["cosine_similarity_raw"]) if len(df_out) else {}
     summary = {
         "model": model_name,
-        "benchmark": "Embedding",
+        "benchmark": "Embedding cosine (CrowS-Pairs gender)",
         "n": len(df_out),
-        "mean_cosine_similarity": float(df_out["cosine_similarity"].mean()) if len(df_out) else None,
-        "std_cosine_similarity": float(df_out["cosine_similarity"].std()) if len(df_out) else None,
-        "mean_cosine_distance": float(df_out["cosine_distance"].mean()) if len(df_out) else None,
+        "bias_type": BIAS_TYPE,
+        "anisotropy_correction": "mean-centered across all eval embeddings (per model)",
+        # Centered (headline)
+        "mean_cosine_similarity": round(float(df_out["cosine_similarity"].mean()), 4),
+        "mean_cosine_similarity_ci": [sim_ci.get("ci_low"), sim_ci.get("ci_high")],
+        "std_cosine_similarity": round(float(df_out["cosine_similarity"].std()), 4),
+        "mean_cosine_distance": round(float(df_out["cosine_distance"].mean()), 4),
+        "mean_cosine_distance_ci": [dist_ci.get("ci_low"), dist_ci.get("ci_high")],
+        # Raw (kept to show the cone effect)
+        "mean_cosine_similarity_raw": round(
+            float(df_out["cosine_similarity_raw"].mean()), 4
+        ),
+        "mean_cosine_similarity_raw_ci": [
+            sim_raw_ci.get("ci_low"),
+            sim_raw_ci.get("ci_high"),
+        ],
     }
-
-    with open(os.path.join(METRICS_DIR, f"{model_name}_embedding_summary.json"), "w") as f:
+    with open(
+        os.path.join(METRICS_DIR, f"{model_name}_embedding_summary.json"), "w"
+    ) as f:
         json.dump(summary, f, indent=2)
+
+    if wb_run is not None:
+        wb_run.summary[f"cos_sim_centered/{model_name}"] = summary[
+            "mean_cosine_similarity"
+        ]
+        wb_run.summary[f"cos_dist_centered/{model_name}"] = summary[
+            "mean_cosine_distance"
+        ]
+        wb_run.summary[f"cos_sim_raw/{model_name}"] = summary[
+            "mean_cosine_similarity_raw"
+        ]
+        df_tag = df_out.copy()
+        df_tag.insert(0, "model", model_name)
+        all_pairs.append(df_tag)
 
     del mdl, tok
     print(
-        f" mean cosine sim={summary['mean_cosine_similarity']:.6f} "
-        f"dist={summary['mean_cosine_distance']:.6f}"
+        f"  centered cos sim={summary['mean_cosine_similarity']}  "
+        f"raw cos sim={summary['mean_cosine_similarity_raw']}"
     )
+
+if wb_run is not None and all_pairs:
+    import wandb
+
+    wb_run.log(
+        {"per_pair": wandb.Table(dataframe=pd.concat(all_pairs, ignore_index=True))}
+    )
+wandb_finish(wb_run)

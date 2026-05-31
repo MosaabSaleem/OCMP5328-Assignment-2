@@ -1,0 +1,23 @@
+{
+  "model": "base_gemma",
+  "benchmark": "Embedding cosine (CrowS-Pairs gender)",
+  "n": 262,
+  "bias_type": "gender",
+  "anisotropy_correction": "mean-centered across all eval embeddings (per model)",
+  "mean_cosine_similarity": 0.8774,
+  "mean_cosine_similarity_ci": [
+    0.8648,
+    0.8896
+  ],
+  "std_cosine_similarity": 0.1056,
+  "mean_cosine_distance": 0.1226,
+  "mean_cosine_distance_ci": [
+    0.1104,
+    0.1352
+  ],
+  "mean_cosine_similarity_raw": 0.9776,
+  "mean_cosine_similarity_raw_ci": [
+    0.9746,
+    0.9806
+  ]
+}

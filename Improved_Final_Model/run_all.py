@@ -1,15 +1,19 @@
 """
 run_all.py
 Runs the full assignment pipeline in order:
+0. Set up base_gemma reference (tokenizer + model_reference.json)
 1. Download data
 2. Build CDA pairs
-3. Train baseline
-4. Train debiased model
-5. Probability-based evaluation
+3. Train baseline (LoRA only)
+3b. Train cda_only (LoRA on CDA-augmented data, no CLP)
+4. Train debiased (LoRA + CDA + CLP)
+4b. Held-out gender bias eval (Bias-in-Bios test split):
+    pronoun stereotype + gender-swap invariance
+5. Probability-based evaluation (CrowS-Pairs, StereoSet)
 6. Embedding-based evaluation
-7. Generated-text evaluation
-8. Utility evaluation
-9. Plot all figures
+7. Generated-text evaluation (Regard gender minimal pairs)
+8. Utility evaluation (perplexity, generation speed)
+9. Plot all figures + log final results to W&B
 """
 
 import os
@@ -17,12 +21,33 @@ import sys
 import subprocess
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(ROOT)
+VENV_PYTHON = os.path.join(PROJECT_ROOT, ".venv311", "bin", "python")
+
+if (
+    os.path.isfile(VENV_PYTHON)
+    and os.path.realpath(sys.executable) != os.path.realpath(VENV_PYTHON)
+):
+    os.execv(VENV_PYTHON, [VENV_PYTHON, __file__, *sys.argv[1:]])
+
+sys.path.insert(0, ROOT)
+from Algorithm._wandb_log import ensure_group, enabled as wandb_enabled
+
+# Set the W&B run group once so every step's W&B run (baseline_train,
+# cda_only_train, debiased_train, results_summary) is grouped together
+# in the dashboard.
+if wandb_enabled():
+    group = ensure_group()
+    print(f"[run_all] W&B group: {group}")
 
 STEPS = [
+    "Algorithm/step0_setup_base_gemma.py",
     "Algorithm/step1_load_data.py",
     "Algorithm/step2_make_cda_pairs.py",
     "Algorithm/step3_train_baseline.py",
+    "Algorithm/step3b_train_cda_only.py",
     "Algorithm/step4_train_debiased.py",
+    "Algorithm/step4b_eval_bib_test.py",
     "Algorithm/step5_eval_probability.py",
     "Algorithm/step6_eval_embedding.py",
     "Algorithm/step7_eval_generated.py",

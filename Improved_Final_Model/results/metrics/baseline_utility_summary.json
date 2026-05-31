@@ -1,0 +1,18 @@
+{
+  "model": "baseline",
+  "benchmark": "Utility",
+  "perplexity_wikitext2": 30.6977,
+  "perplexity_wikitext2_ci": [
+    28.6972,
+    32.9668
+  ],
+  "mean_nll_loss": 3.4242,
+  "mean_nll_loss_ci": [
+    3.3568,
+    3.4955
+  ],
+  "std_nll_loss": 0.7998,
+  "mean_generation_seconds": 2.428,
+  "std_generation_seconds": 0.007,
+  "train_seconds": 4973.78
+}

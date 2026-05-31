@@ -1,0 +1,6 @@
+{
+  "model": "cda_only",
+  "train_seconds": 763.52,
+  "train_rows": 9968,
+  "epochs": 2
+}

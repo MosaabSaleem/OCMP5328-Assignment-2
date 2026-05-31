@@ -1,0 +1,18 @@
+{
+  "model": "cda_only",
+  "benchmark": "Utility",
+  "perplexity_wikitext2": 32.3426,
+  "perplexity_wikitext2_ci": [
+    30.1746,
+    34.8029
+  ],
+  "mean_nll_loss": 3.4764,
+  "mean_nll_loss_ci": [
+    3.407,
+    3.5497
+  ],
+  "std_nll_loss": 0.8259,
+  "mean_generation_seconds": 2.415,
+  "std_generation_seconds": 0.009,
+  "train_seconds": 763.52
+}

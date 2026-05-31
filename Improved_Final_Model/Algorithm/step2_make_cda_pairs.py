@@ -1,14 +1,13 @@
 """
-Step 2 — Counterfactual Data Augmentation (CDA).
-For every biography, create a gender-swapped counterfactual copy.
-This version matches the final working notebook logic.
+Step 2 — Counterfactual Data Augmentation (CDA)
+For every biography, create a gender-swapped counterfactual copy by replacing
+gendered pronouns and occupational nouns with their opposite gender equivalent.
+Both the original and counterfactual are kept in training (two-sided CDA).
 """
-import sys
-import os
-import re
-
+import sys, os, re
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Algorithm.config import DATA_DIR
+from Algorithm._gender_swap import gender_swap
 
 import pandas as pd
 
@@ -48,7 +47,7 @@ df["swap_changed"] = (df["text"] != df["text_cf"]).astype(int)
 
 #Keep only rows where a swap was made, and save the new dataset with original and counterfactual pairs
 df.to_csv(out_path, index=False)
-
-print(f"[Step 2] Saved pairs -> {out_path}")
-print(f"[Step 2] Texts with at least one swap: {int(df['swap_changed'].sum())}/{len(df)}")
-print(df[["text", "text_cf", "swap_changed"]].head(3).to_string())
+changed = df["swap_changed"].sum()
+print(f"[Step 2] Saved {len(df)} pairs -> {out_path}")
+print(f"[Step 2] Texts with at least one swap: {changed}/{len(df)}")
+print(df[["text","text_cf","swap_changed"]].head(3).to_string())

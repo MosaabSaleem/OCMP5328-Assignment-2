@@ -1,0 +1,6 @@
+{
+  "model": "baseline",
+  "train_seconds": 4973.78,
+  "train_rows": 4984,
+  "epochs": 2
+}

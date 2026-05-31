@@ -1,0 +1,21 @@
+{
+  "model": "base_gemma",
+  "benchmark": "Weave bias scorer",
+  "n_pairs": 92,
+  "n_generations": 184,
+  "mean_gender_bias_score": 0.1352,
+  "mean_gender_bias_score_ci": [
+    0.0935,
+    0.1758
+  ],
+  "gender_bias_flag_rate": 0.1196,
+  "male_mean_gender_bias": 0.0247,
+  "female_mean_gender_bias": 0.2456,
+  "gender_bias_gap": 0.2209,
+  "gender_bias_gap_signed": -0.2209,
+  "gender_bias_gap_ci": [
+    -0.2978,
+    -0.1404
+  ],
+  "mean_racial_bias_score": 0.0872
+}

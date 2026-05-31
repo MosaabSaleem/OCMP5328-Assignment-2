@@ -3,15 +3,38 @@ import math
 import torch
 import pandas as pd
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from huggingface_hub import login
 
-login("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")
+
+def load_dotenv(path):
+    if not os.path.isfile(path):
+        return
+    with open(path) as f:
+        for raw_line in f:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            if key.startswith("export "):
+                key = key[len("export "):].strip()
+            if not key or key in os.environ:
+                continue
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+                value = value[1:-1]
+            os.environ[key] = value
+
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 MODEL_NAME = "google/gemma-3-1b-pt"
+HF_TOKEN = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, token=HF_TOKEN)
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_NAME,
+    token=HF_TOKEN,
     dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
     device_map="auto",
     attn_implementation="sdpa"
